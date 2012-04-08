@@ -1,0 +1,19 @@
+<html>
+<head>
+<meta charset="UTF-8">
+<title>ReadHub</title>
+</head>
+
+<body>
+
+{{ path_html }}
+
+<ul>
+{% for e in list %}
+ <li><a href="{{ e.url }}">{{ e.name | escape }}{% if e.is_tree %}/{% endif %}</a>
+{% endfor %}
+</ul>
+
+</body>
+
+</html>

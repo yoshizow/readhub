@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>ReadHub</title>
+<link href="/css/google-code-prettify/prettify.css" type="text/css" rel="stylesheet">
+<link href="/css/blob.css" type="text/css" rel="stylesheet">
+<script src="/js/jquery-1.7.2.min.js"></script>
+<script src="/js/jquery.jsonp-2.3.0.min.js"></script>
+<script src="/js/base64.js"></script>
+<script src="/js/blob.js"></script>
+<script src="/js/google-code-prettify/prettify.js"></script>
+<script type="text/javascript">
+$(document).ready(function() {
+    var user = "{{ user }}";
+    var repo = "{{ repo }}";
+    var id = "{{ id }}";
+    $("#status").text("getting source code...");
+    getSource(user, repo, id, function() {
+        $("#status").text("getting source code...done");
+        prettyPrint();
+    });
+});
+</script>
+</head>
+
+<body>
+
+{{ path_html }}
+
+<div id="status"></div>
+<pre id="source" class="prettyprint linenums"></pre>
+
+</body>
+
+</html>
