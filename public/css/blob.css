@@ -2,3 +2,22 @@ pre.prettyprint {
     font-family: 'Bitstream Vera Sans Mono','Courier New',monospace;
     font-size: 12px;
 }
+
+textarea.comment_edit {
+    width: 40em;
+    height: 2.5em;
+    vertical-align: top;
+}
+
+#cursor {
+    font-size: 12px;
+    background-image: url("/images/arrow.gif");
+    background-repeat: no-repeat;
+    width: 12px;
+    height: 12px;
+}
+
+.comment {
+    color: #800;
+    font-weight: bold;
+}

@@ -12,10 +12,11 @@ require 'dalli'
 
 include Test::Unit::Assertions
 
+# TODO: database
 PROJECT_MAP = {
   ['webkit', '20120407'] => ['WebKit', 'webkit', 'e38bcf7cbb5c0988a2eac0b7de8d20367a15ae4f'],
   ['linux', '3.4-rc2'] => ['torvalds', 'linux', '0034102808e0dbbf3a2394b82b1bb40b5778de9e'],
-  ['etudejs', '20100525'] => ['yoshizow', 'etudejs', 'f8c88e3acbd6f3d15bc96e2f227a205b2ed2b3e4'],
+  ['readhub', '20120408'] => ['yoshizow', 'readhub', 'b42a941df221f456877e3879249bd6907057f17a'],
   ['sandbox', '0.0.0'] => ['yoshizow', 'sandbox', 'a332b6e03dd19ef035355acaa8066db14fcbc736']
 }
 
@@ -143,16 +144,16 @@ end
 
 # actions ----------
 
-def make_path_breadcrumb_html(project, path)
-  def linkify(html, url)
-    return '<a href="' + url + '">' + html + '</a>'
-  end
+def linkify(html, url)
+  return '<a href="' + url + '">' + html + '</a>'
+end
 
+def make_path_breadcrumb_html(project, path)
   def render_html(list)
     if list.empty?
       return ''
     else
-      return '<p class="path_breadcrumb">' +
+      return '<span class="path_breadcrumb">' +
              (list.each_with_index.collect do |e, i|
                 if i < list.size - 1
                   linkify(Rack::Utils.escape_html(e[0]), e[1])
@@ -160,7 +161,7 @@ def make_path_breadcrumb_html(project, path)
                   Rack::Utils.escape_html(e[0])
                 end
               end.join('/')) +
-              '</p>'
+              '</span>'
     end
   end
 
@@ -175,6 +176,10 @@ def make_path_breadcrumb_html(project, path)
   end
 
   return render_html(make_list(project, path))
+end
+
+def make_project_link_html(project)
+  return linkify(Rack::Utils.escape_html("#{project.project}-#{project.revision}"), project.url_for_path('/'))
 end
 
 get '/' do
@@ -194,7 +199,8 @@ get '/:project/:revision/*' do |project, revision, path|
   blob = project.blob_for_path(path)
   halt 404  if blob == nil
   if blob.is_tree?
-    locals = { :path_html => make_path_breadcrumb_html(project, path),
+    locals = { :project_link_html => make_project_link_html(project),
+               :path_html => make_path_breadcrumb_html(project, path),
                :list => blob.list.collect do |e|
                  { 'url'     => project.url_for_path(path + '/' + e.name),
                    'name'    => e.name,
@@ -203,7 +209,8 @@ get '/:project/:revision/*' do |project, revision, path|
              }
     liquid :tree, :locals => locals
   else
-    locals = { :path_html => make_path_breadcrumb_html(project, path),
+    locals = { :project_link_html => make_project_link_html(project),
+               :path_html => make_path_breadcrumb_html(project, path),
                :user => project.user,
                :repo => project.repo,
                :id => blob.id }
