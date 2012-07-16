@@ -269,9 +269,12 @@ get '/:project/:revision/*' do |project, revision, path|
   else
     locals = { :project_link_html => make_project_link_html(project),
                :path_html => make_path_breadcrumb_html(project, path),
+               :project => project.name,
+               :revision => project.revision,
                :user => project.user,
                :repo => project.repo,
-               :id => blob.id }
+               :id => blob.id,
+               :path => path }
     liquid :blob, :locals => locals
   end
 end

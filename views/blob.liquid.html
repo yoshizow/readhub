@@ -11,86 +11,22 @@
 <script src="/js/blob.js" type="text/javascript"></script>
 <script src="/js/google-code-prettify/prettify.js" type="text/javascript"></script>
 <script type="text/javascript">
-function CommentModel() {
-    this.initialize.apply(this, arguments);
-}
-
-CommentModel.prototype = {
-    initialize: function() {
-        this.comments = [];
-    },
-
-    setComment: function(index, text) {
-        console.dir(this);
-        this.comments[index] = text;
-    },
-
-    getComment: function(index) {
-        return this.comments[index];
-    },
-
-    hasComment: function(index) {
-        return (index in this.comments);
-    },
-};
-
-function CommentView() {
-    this.initialize.apply(this, arguments);
-}
-
-CommentView.prototype = {
-    initialize: function(model) {
-        this.model = model;
-        this.cursorIndex = -1;
-        this.editingIndex = -1;
-    },
-    
-    setup: function() {
-        this.commentEditElem = $("#comment_edit");
-        this.commentElem = $("[name='comment']");
-        var self = this;
-
-        var linesElem = $("#source ol");
-        linesElem.on("mouseover", "li", function(ev) {
-            self.cursorIndex = linesElem.children().index(this);
-            var ofs = $(this).offset();
-            ofs.left -= 30;
-            $("#cursor").offset(ofs).show();
-        });
-        $("#cursor").on("click", function(ev) {
-            self.editingIndex = self.cursorIndex;
-            var li = linesElem.children()[self.cursorIndex];
-            $(li).find("[name='comment']").remove();
-            $(li).prepend(self.commentEditElem.show());
-            var commentText = self.model.getComment(self.editingIndex);
-            self.commentEditElem.find("textarea").val(commentText).focus();
-        });
-        this.commentEditElem.on("blur", "textarea", function(ev) {
-            var commentText = $(this).val();
-            if (commentText.length > 0) {
-                var commentElemClone = self.commentElem.clone(false);
-                commentElemClone.find("[name='container']").text(commentText);
-                self.commentEditElem.after(commentElemClone);
-                self.model.setComment(self.editingIndex, commentText);
-            }
-            $(this).val("");
-            self.commentEditElem.detach();
-            self.editingIndex = -1;
-        });
-    },
-};
-
 $(document).ready(function() {
+    var project = "{{ project }}";
+    var revision = "{{ revision }}";
     var user = "{{ user }}";
     var repo = "{{ repo }}";
     var id = "{{ id }}";
+    var path = "{{ path }}";
     $("#status").text("getting source code...");
+    var commentModel = new CommentModel();
+    var persistentCommentModel = new PersistentCommentModel(commentModel, project, revision, path);
     getSource(user, repo, id, function() {
         $("#status").text("getting source code...done");
         prettyPrint();
-        var commentModel = new CommentModel();
-        var commentView = new CommentView(commentModel);
-        commentView.setup();
+        persistentCommentModel.getAllComments(function(status) {
+            var commentView = new CommentView(persistentCommentModel);
+        });
     });
 });
 </script>
