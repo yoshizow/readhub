@@ -6,19 +6,16 @@ require 'test/unit'
 require 'digest/sha1'
 
 require 'sinatra'
+require 'sinatra/json'
 require 'liquid'
 require 'github_api'
 require 'dalli'
+require 'json'
+
+$LOAD_PATH.unshift(File.dirname(__FILE__))
+require './model.rb'
 
 include Test::Unit::Assertions
-
-# TODO: database
-PROJECT_MAP = {
-  ['webkit', '20120407'] => ['WebKit', 'webkit', 'e38bcf7cbb5c0988a2eac0b7de8d20367a15ae4f'],
-  ['linux', '3.4-rc2'] => ['torvalds', 'linux', '0034102808e0dbbf3a2394b82b1bb40b5778de9e'],
-  ['readhub', '20120408'] => ['yoshizow', 'readhub', 'b42a941df221f456877e3879249bd6907057f17a'],
-  ['sandbox', '0.0.0'] => ['yoshizow', 'sandbox', 'a332b6e03dd19ef035355acaa8066db14fcbc736']
-}
 
 # configurations ----------
 
@@ -36,25 +33,31 @@ set :cache, Dalli::Client.new
 # models ----------
 
 class Project
+  def self.list()
+    return DB::Project.all()
+  end
+
   def self.create(project, revision)
-    user, repo, commit_id = PROJECT_MAP[[project, revision]]
-    if user == nil
+    db_project = DB::Project.first(:name => project, :revision => revision)
+    if db_project == nil
       return nil
     else
-      return self.new(project, revision, user, repo, commit_id)
+      return self.new(db_project)
     end
   end
 
-  def initialize(project, revision, user, repo, commit_id)
-    @project = project
-    @revision = revision
-    @user = user
-    @repo = repo
-    @commit_id = commit_id
+  def initialize(db_project)
+    @db_project = db_project
+    @name = @db_project.name
+    @revision = @db_project.revision
+    @db_repo = @db_project.repo
+    @user = @db_repo.user
+    @repo = @db_repo.repo
+    @commit_id = @db_repo.commit_id
     @github = CachedGitHubAPI.new(Github.new, settings.cache)  # TODO: inject
   end
 
-  attr_reader :project, :revision, :user, :repo, :commit_id
+  attr_reader :name, :revision, :user, :repo, :commit_id
 
   def blob_for_path(path)
     tree = @github.get_tree(@user, @repo, @commit_id)
@@ -87,7 +90,28 @@ class Project
   end
 
   def url_for_path(path)
-    return '/' + [@project, @revision, path].join('/').gsub(%r!//+!, '/')
+    return '/' + [@name, @revision, path].join('/').gsub(%r!//+!, '/')
+  end
+
+  def get_comments(path)
+    db_file = @db_project.files.first(:path => path)
+    if db_file != nil
+      db_comments = db_file.comments.all
+      return db_comments
+    else
+      return []
+    end
+  end
+
+  def add_comment(path, line, text)
+    db_file = @db_project.files.first_or_create(:path => path)
+    db_comment = db_file.comments.first(:line => line)
+    now = Time.now
+    if db_comment != nil
+      db_comment.update(:text => text, :modified_at => now)
+    else
+      db_file.comments.create(:line => line, :text => text, :modified_at => now)
+    end
   end
 end
 
@@ -142,7 +166,7 @@ class CachedGitHubAPI
   end
 end
 
-# actions ----------
+# helper routines ----------
 
 def linkify(html, url)
   return '<a href="' + url + '">' + html + '</a>'
@@ -179,18 +203,52 @@ def make_path_breadcrumb_html(project, path)
 end
 
 def make_project_link_html(project)
-  return linkify(Rack::Utils.escape_html("#{project.project}-#{project.revision}"), project.url_for_path('/'))
+  return linkify(Rack::Utils.escape_html("#{project.name}-#{project.revision}"), project.url_for_path('/'))
 end
 
+# APIs ----------
+
+# API: get comments for specified file
+get '/projects/:project/:revision/files/*/comments' do |project, revision, path|
+  project = Project.create(project, revision)
+  halt 404  if project == nil
+
+  blob = project.blob_for_path(path)
+  halt 404  if blob == nil
+  halt 404  if blob.is_tree?
+  
+  comments = project.get_comments(path)
+
+  json comments.map { |e| { :line => e.line, :text => e.text } }
+end
+
+# API: add new comment
+post '/projects/:project/:revision/files/*/comments/new' do |project, revision, path|
+  project = Project.create(project, revision)
+  halt 404  if project == nil
+
+  params = JSON.parse(request.body.read)
+  line = params['line']
+  text = params['text']
+
+  project.add_comment(path, line, text)
+
+  json 'status' => 'OK'
+end
+
+# views ----------
+
+# view: root index
 get '/' do
-  locals = { :list => PROJECT_MAP.keys.collect do |project, revision|
-               { 'url'  => "/#{project}/#{revision}/",
-                 'name' => "#{project}-#{revision}" }
+  locals = { :list => Project.list.collect do |e|
+               { 'url'  => "/#{e.name}/#{e.revision}/",
+                 'name' => "#{e.name}-#{e.revision}" }
              end
            }
   liquid :project_index, :locals => locals
 end
 
+# view: tree or blob
 get '/:project/:revision/*' do |project, revision, path|
   project = Project.create(project, revision)
   halt 404  if project == nil
