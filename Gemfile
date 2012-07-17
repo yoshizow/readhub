@@ -1,6 +1,7 @@
 source :rubygems
 
 gem 'sinatra'
+gem 'sinatra-contrib'
 gem 'sinatra-reloader', :group => :development
 gem 'thin'
 gem 'liquid'

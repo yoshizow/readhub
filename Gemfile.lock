@@ -118,5 +118,6 @@ DEPENDENCIES
   liquid
   rake
   sinatra
+  sinatra-contrib
   sinatra-reloader
   thin
