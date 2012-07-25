@@ -8,7 +8,13 @@ CommentModel.prototype = {
     },
 
     setComment: function(index, text) {
-        this.comments[index] = text;
+        if (text.length > 0) {
+            this.comments[index] = text;
+        }
+    },
+
+    deleteComment: function(index) {
+        delete this.comments[index];
     },
 
     getComment: function(index) {
@@ -39,13 +45,26 @@ PersistentCommentModel.prototype = {
     },
 
     setComment: function(index, text, cont) {
-        this.model.setComment(index, text);
-        $.ajax({url: this.commentsApiUrl + '/new',
-               type: 'POST',
-               contentType: 'application/json',
-               data: JSON.stringify({ line: index, text: text }),
-               processData: false,
-               dataType: 'json'
+        if (text.length > 0) {
+            this.model.setComment(index, text);
+            $.ajax({url: this.commentsApiUrl + '/new',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ line: index, text: text }),
+                    processData: false,
+                    dataType: 'json'
+                   }).done(function(data) {
+                       cont('OK');  // temp
+                   });
+        } else {
+            cont('NG');
+        }
+    },
+
+    deleteComment: function(index, cont) {
+        this.model.deleteComment(index);
+        $.ajax({url: this.commentsApiUrl + '/' + index,
+               type: 'DELETE'
               }).done(function(data) {
                   cont('OK');  // temp
               });
@@ -108,6 +127,8 @@ CommentView.prototype = {
                 commentElemClone.find("[name='container']").text(commentText);
                 self.commentEditElem.after(commentElemClone);
                 self.model.setComment(self.editingIndex, commentText, function(status) {});
+            } else {
+                self.model.deleteComment(self.editingIndex, function(status) {});
             }
             $(this).val("");
             self.commentEditElem.detach();

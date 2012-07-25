@@ -113,6 +113,14 @@ class Project
       db_file.comments.create(:line => line, :text => text, :modified_at => now)
     end
   end
+
+  def delete_comment(path, line)
+    db_file = @db_project.files.first_or_create(:path => path)
+    db_comments = db_file.comments.all(:line => line)
+    if db_comments != nil
+      db_comments.destroy
+    end
+  end
 end
 
 class GitBlob
@@ -234,6 +242,16 @@ post '/projects/:project/:revision/files/*/comments/new' do |project, revision, 
   project.add_comment(path, line, text)
 
   json 'status' => 'OK'
+end
+
+# API: remove comment
+delete '/projects/:project/:revision/files/*/comments/:line' do |project, revision, path, line|
+  project = Project.create(project, revision)
+  halt 404  if project == nil
+
+  project.delete_comment(path, line)
+
+  json 'status' => 'ok'
 end
 
 # views ----------
