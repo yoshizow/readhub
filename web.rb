@@ -1,21 +1,17 @@
 #!/usr/bin/env ruby
 # -*- coding: utf-8 -*-
 
-require 'pp'
-require 'test/unit'
-require 'digest/sha1'
-
 require 'sinatra'
 require 'sinatra/json'
+require 'rugged'
 require 'liquid'
-require 'github_api'
-require 'dalli'
 require 'json'
+require 'pp'
+#require 'test/unit'
 
-$LOAD_PATH.unshift(File.dirname(__FILE__))
-require './model.rb'
+require_relative './model.rb'
 
-include Test::Unit::Assertions
+#include Test::Unit::Assertions
 
 # configurations ----------
 
@@ -28,17 +24,21 @@ end
 # handle views/*.liquid.html as Liquid templates
 Tilt.prefer Tilt::LiquidTemplate, '.liquid.html'
 
-set :cache, Dalli::Client.new
-
 # models ----------
+
+USER_TMP = 'yoshizow'
+
+class User
+  # TODO: impl later
+end
 
 class Project
   def self.list()
     return DB::Project.all()
   end
 
-  def self.create(project, revision)
-    db_project = DB::Project.first(:name => project, :revision => revision)
+  def self.create(name, revision)
+    db_project = DB::Project.first(:name => name, :revision => revision)
     if db_project == nil
       return nil
     else
@@ -51,46 +51,36 @@ class Project
     @name = @db_project.name
     @revision = @db_project.revision
     @db_repo = @db_project.repo
-    @user = @db_repo.user
-    @repo = @db_repo.repo
-    @commit_id = @db_repo.commit_id
-    @github = CachedGitHubAPI.new(Github.new, settings.cache)  # TODO: inject
   end
 
-  attr_reader :name, :revision, :user, :repo, :commit_id
+  attr_reader :name, :revision
 
-  def blob_for_path(path)
-    tree = @github.get_tree(@user, @repo, @commit_id)
-    path_components = path.split('/')
-    assert !path_components.include?('')
-    if path_components.empty?
-      return GitTree.new(tree)
-    end
-    path_components.each_with_index do |path_component, idx|
-      entry = tree['tree'].find { |e| e['path'] == path_component }
-      return nil  if entry == nil
-      case entry['type']
-      when 'tree'
-        entry_id = entry['sha']
-        tree = @github.get_tree(@user, @repo, entry_id)
-        if idx == path_components.size - 1
-          return GitTree.new(tree)
-        end
-      when 'blob'
-        if idx == path_components.size - 1
-          return GitBlob.new(entry)
-        else
-          return nil
-        end
+  def gitobj_for_path(path)
+    repo = Rugged::Repository.new(@db_repo.path)
+    begin
+      commit = repo.lookup(@revision)
+      root = commit.tree
+      if path != ''
+        info = root.path(path)
+        obj = repo.lookup(info[:oid])
       else
-        raise "Unknown blob type: #{entry.inspect}"
+        obj = root
       end
+      case obj
+      when Rugged::Tree
+        return GitTree.new(obj)
+      when Rugged::Blob
+        return GitBlob.new(obj)
+      else
+        raise 'Unknown object type: ' + obj
+      end
+    ensure
+      repo.close
     end
-    return nil
   end
 
   def url_for_path(path)
-    return '/' + [@name, @revision, path].join('/').gsub(%r!//+!, '/')
+    return '/' + [USER_TMP, @name, @revision, path].join('/').gsub(%r!//+!, '/')
   end
 
   def get_comments(path)
@@ -125,10 +115,12 @@ end
 
 class GitBlob
   def initialize(blob)
-    @id = blob['sha']
+    @blob = blob
   end
 
-  attr_reader :id
+  def data
+    @blob.read_raw.data
+  end
 
   def is_tree?
     false
@@ -138,8 +130,8 @@ end
 class GitTree
   class Entry
     def initialize(entry)
-      @name = entry['path']
-      @is_tree = entry['type'] == 'tree'
+      @name = entry[:name]
+      @is_tree = entry[:type] == :tree
     end
 
     attr_reader :name
@@ -147,30 +139,13 @@ class GitTree
   end
 
   def initialize(tree)
-    @list = tree['tree'].collect { |entry| Entry.new(entry) }
+    @list = tree.map { |entry| Entry.new(entry) }
   end
 
   attr_reader :list
 
   def is_tree?
     true
-  end
-end
-
-class CachedGitHubAPI
-  def initialize(github, cache)
-    @github = github
-    @cache = cache
-  end
-
-  def get_tree(user, repo, commit_id)
-    cache_key = 'GitHub:tree:' + Digest::SHA1.hexdigest([user, repo, commit_id].join(':'))
-    result = @cache.get(cache_key)
-    if result == nil
-      result = @github.git_data.tree(user, repo, commit_id)
-      @cache.set(cache_key, result)
-    end
-    return result
   end
 end
 
@@ -199,7 +174,7 @@ def make_path_breadcrumb_html(project, path)
 
   def make_list(project, path)
     path_components = path.split('/')
-    assert !path_components.include?('')
+    #assert !path_components.include?('')
     list = path_components.each_with_index.collect do |name, idx|
              [name,
               project.url_for_path(path_components[0..idx].join('/'))]
@@ -221,7 +196,7 @@ get '/projects/:project/:revision/files/*/comments' do |project, revision, path|
   project = Project.create(project, revision)
   halt 404  if project == nil
 
-  blob = project.blob_for_path(path)
+  blob = project.gitobj_for_path(path)
   halt 404  if blob == nil
   halt 404  if blob.is_tree?
   
@@ -267,17 +242,17 @@ get '/' do
 end
 
 # view: tree or blob
-get '/:project/:revision/*' do |project, revision, path|
+get '/:user/:project/:revision/*' do |user, project, revision, path|
   project = Project.create(project, revision)
   halt 404  if project == nil
   path = path.chomp('/')
 
-  blob = project.blob_for_path(path)
-  halt 404  if blob == nil
-  if blob.is_tree?
+  gitobj = project.gitobj_for_path(path)
+  halt 404  if gitobj == nil
+  if gitobj.is_tree?
     locals = { :project_link_html => make_project_link_html(project),
                :path_html => make_path_breadcrumb_html(project, path),
-               :list => blob.list.collect do |e|
+               :list => gitobj.list.collect do |e|
                  { 'url'     => project.url_for_path(path + '/' + e.name),
                    'name'    => e.name,
                    'is_tree' => e.is_tree }
@@ -287,11 +262,10 @@ get '/:project/:revision/*' do |project, revision, path|
   else
     locals = { :project_link_html => make_project_link_html(project),
                :path_html => make_path_breadcrumb_html(project, path),
+               :user => USER_TMP,
                :project => project.name,
                :revision => project.revision,
-               :user => project.user,
-               :repo => project.repo,
-               :id => blob.id,
+               :data => Rack::Utils.escape_html(gitobj.data),
                :path => path }
     liquid :blob, :locals => locals
   end

@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-# TODO: uniqueness validation
-
 require 'data_mapper'
 
 LOCAL_DATABASE_URL = 'sqlite3:db.sqlite'
@@ -12,6 +10,16 @@ DataMapper.setup(:default, ENV['DATABASE_URL'] || LOCAL_DATABASE_URL)
 DataMapper::Model.raise_on_save_failure = true
 
 module DB
+  class User
+    include DataMapper::Resource
+
+    property :id,       Serial
+    property :provider, String, :required => true
+    property :name,     String, :required => true
+
+    has n, :projects
+  end
+
   class Project
     include DataMapper::Resource
 
@@ -21,15 +29,14 @@ module DB
 
     has n, :files
     has 1, :repo    # 'repository' can't be used for field name
+    belongs_to :user
   end
 
-  class Repo    # GitHub repository
+  class Repo    # Local repository
     include DataMapper::Resource
 
-    property :id,        Serial
-    property :user,      String, :required => true
-    property :repo,      String, :required => true
-    property :commit_id, String, :required => true
+    property :id,       Serial
+    property :path,     String, :length => 1024, :required => true
 
     belongs_to :project
   end
