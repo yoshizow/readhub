@@ -17,10 +17,9 @@ namespace :db do
     project_list.each do |e|
       proj_name, revision, path = e
       user = DB::User.new(:provider => 'github', :name => 'yoshizow')
-      user.save
-      project = user.projects.create(:name => proj_name, :revision => revision)
+      project = user.projects.new(:name => proj_name, :revision => revision)
       project.repo = DB::Repo.new(:path => path)
-      project.save
+      user.save
     end
   end
 end

@@ -10,11 +10,12 @@
 <script src="/js/google-code-prettify/prettify.js" type="text/javascript"></script>
 <script type="text/javascript">
 $(document).ready(function() {
-    var project = "{{ project }}";
+    var user_name = "{{ user_name }}";
+    var proj_name = "{{ proj_name }}";
     var revision = "{{ revision }}";
     var path = "{{ path }}";
     var commentModel = new CommentModel();
-    var persistentCommentModel = new PersistentCommentModel(commentModel, project, revision, path);
+    var persistentCommentModel = new PersistentCommentModel(commentModel, user_name, proj_name, revision, path);
     prettyPrint();
     persistentCommentModel.getAllComments(function(status) {
         var commentView = new CommentView(persistentCommentModel);

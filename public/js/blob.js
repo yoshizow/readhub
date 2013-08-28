@@ -35,9 +35,9 @@ function PersistentCommentModel() {
 }
 
 PersistentCommentModel.prototype = {
-    initialize: function(model, project, revision, path) {
+    initialize: function(model, user_name, proj_name, revision, path) {
         this.model = model;
-        this.commentsApiUrl = ['/projects', project, revision, 'files', path, 'comments'].join('/');
+        this.commentsApiUrl = '/' + [user_name, proj_name, revision, 'files', path, 'comments'].join('/');
     },
 
     getComment: function(index) {

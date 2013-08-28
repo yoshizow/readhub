@@ -19,6 +19,7 @@ $stdout.sync = true
 
 configure :development do
   require 'sinatra/reloader'
+  use Rack::CommonLogger
 end
 
 # handle views/*.liquid.html as Liquid templates
@@ -26,39 +27,39 @@ Tilt.prefer Tilt::LiquidTemplate, '.liquid.html'
 
 # models ----------
 
-USER_TMP = 'yoshizow'
-
-class User
-  # TODO: impl later
-end
+DEFAULT_PROVIDER = 'github'
 
 class Project
   def self.list()
     return DB::Project.all()
   end
 
-  def self.create(name, revision)
-    db_project = DB::Project.first(:name => name, :revision => revision)
-    if db_project == nil
-      return nil
+  def self.create(user_name, proj_name, revision)
+    db_user = DB::User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
+    if db_user != nil
+      db_project = db_user.projects.first(:name => proj_name, :revision => revision)
+      if db_project != nil
+        return self.new(db_project)
+      else
+        return nil
+      end
     else
-      return self.new(db_project)
+      return nil
     end
   end
 
   def initialize(db_project)
     @db_project = db_project
-    @name = @db_project.name
-    @revision = @db_project.revision
     @db_repo = @db_project.repo
   end
 
-  attr_reader :name, :revision
+  def name     ; @db_project.name     ; end
+  def revision ; @db_project.revision ; end
 
   def gitobj_for_path(path)
     repo = Rugged::Repository.new(@db_repo.path)
     begin
-      commit = repo.lookup(@revision)
+      commit = repo.lookup(@db_project.revision)
       root = commit.tree
       if path != ''
         info = root.path(path)
@@ -80,7 +81,7 @@ class Project
   end
 
   def url_for_path(path)
-    return '/' + [USER_TMP, @name, @revision, path].join('/').gsub(%r!//+!, '/')
+    return '/' + [@db_project.user.name, @db_project.name, @db_project.revision, path].join('/').gsub(%r!//+!, '/')
   end
 
   def get_comments(path)
@@ -93,20 +94,20 @@ class Project
     end
   end
 
-  def add_comment(path, line, text)
+  def add_comment(logged_in_user, path, line, text)
     db_file = @db_project.files.first_or_create(:path => path)
-    db_comment = db_file.comments.first(:line => line)
+    db_comment = db_file.comments.first(:user => logged_in_user, :line => line)
     now = Time.now
     if db_comment != nil
       db_comment.update(:text => text, :modified_at => now)
     else
-      db_file.comments.create(:line => line, :text => text, :modified_at => now)
+      db_file.comments.create(:user => logged_in_user, :line => line, :text => text, :modified_at => now)
     end
   end
 
-  def delete_comment(path, line)
+  def delete_comment(logged_in_user, path, line)
     db_file = @db_project.files.first_or_create(:path => path)
-    db_comments = db_file.comments.all(:line => line)
+    db_comments = db_file.comments.all(:user => logged_in_user, :line => line)
     if db_comments != nil
       db_comments.destroy
     end
@@ -191,12 +192,18 @@ end
 
 # APIs ----------
 
-# API: get comments for specified file
-get '/projects/:project/:revision/files/*/comments' do |project, revision, path|
-  project = Project.create(project, revision)
-  halt 404  if project == nil
+# TEMP
+logged_in_user = DB::User.first_or_create(:name => 'yoshizow', :provider => 'github')
 
+# API: get comments for specified file
+get '/:user/:project/:revision/files/*/comments' do |user_name, proj_name, revision, path|
+  project = Project.create(user_name, proj_name, revision)
+  halt 404  if project == nil
+  p [:project, project]
+
+  p [:path, path]
   blob = project.gitobj_for_path(path)
+  p [:blob, blob]
   halt 404  if blob == nil
   halt 404  if blob.is_tree?
   
@@ -206,25 +213,25 @@ get '/projects/:project/:revision/files/*/comments' do |project, revision, path|
 end
 
 # API: add new comment
-post '/projects/:project/:revision/files/*/comments/new' do |project, revision, path|
-  project = Project.create(project, revision)
+post '/:user/:project/:revision/files/*/comments/new' do |user_name, proj_name, revision, path|
+  project = Project.create(user_name, proj_name, revision)
   halt 404  if project == nil
 
   params = JSON.parse(request.body.read)
   line = params['line']
   text = params['text']
 
-  project.add_comment(path, line, text)
+  project.add_comment(logged_in_user, path, line, text)
 
   json 'status' => 'OK'
 end
 
 # API: remove comment
-delete '/projects/:project/:revision/files/*/comments/:line' do |project, revision, path, line|
-  project = Project.create(project, revision)
+delete '/:user/:project/:revision/files/*/comments/:line' do |user_name, proj_name, revision, path, line|
+  project = Project.create(user_name, proj_name, revision)
   halt 404  if project == nil
 
-  project.delete_comment(path, line)
+  project.delete_comment(logged_in_user, path, line)
 
   json 'status' => 'ok'
 end
@@ -234,16 +241,16 @@ end
 # view: root index
 get '/' do
   locals = { :list => Project.list.collect do |e|
-               { 'url'  => "/#{e.name}/#{e.revision}/",
-                 'name' => "#{e.name}-#{e.revision}" }
+               { 'url'  => "/#{e.user.name}/#{e.name}/#{e.revision}/",
+                 'name' => "#{e.user.name}/#{e.name}/#{e.revision}" }
              end
            }
   liquid :project_index, :locals => locals
 end
 
 # view: tree or blob
-get '/:user/:project/:revision/*' do |user, project, revision, path|
-  project = Project.create(project, revision)
+get '/:user/:project/:revision/*' do |user_name, proj_name, revision, path|
+  project = Project.create(user_name, proj_name, revision)
   halt 404  if project == nil
   path = path.chomp('/')
 
@@ -262,8 +269,8 @@ get '/:user/:project/:revision/*' do |user, project, revision, path|
   else
     locals = { :project_link_html => make_project_link_html(project),
                :path_html => make_path_breadcrumb_html(project, path),
-               :user => USER_TMP,
-               :project => project.name,
+               :user_name => user_name,
+               :proj_name => project.name,
                :revision => project.revision,
                :data => Rack::Utils.escape_html(gitobj.data),
                :path => path }

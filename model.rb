@@ -18,6 +18,7 @@ module DB
     property :name,     String, :required => true
 
     has n, :projects
+    has n, :comments
   end
 
   class Project
@@ -28,7 +29,7 @@ module DB
     property :revision, String, :required => true
 
     has n, :files
-    has 1, :repo    # 'repository' can't be used for field name
+    has 1, :repo    # 'repository' can't be used for field name, so use 'repo'
     belongs_to :user
   end
 
@@ -60,6 +61,7 @@ module DB
     property :modified_at, DateTime, :required => true
 
     belongs_to :file
+    belongs_to :user
   end
 end
 
