@@ -54,8 +54,15 @@ PersistentCommentModel.prototype = {
                     processData: false,
                     dataType: 'json'
                    }).done(function(data) {
-                       cont('OK');  // temp
-                   });
+                       var result = JSON.parse(data);
+                       if (result.status == 'OK') {
+                           cont('OK');
+                       } else {
+                           cont('NG');
+                       }
+                   }).fail(function() {
+                       cont('NG');
+                   });;
         } else {
             cont('NG');
         }
@@ -66,7 +73,14 @@ PersistentCommentModel.prototype = {
         $.ajax({url: this.commentsApiUrl + '/' + index,
                type: 'DELETE'
               }).done(function(data) {
-                  cont('OK');  // temp
+                  var result = JSON.parse(data);
+                  if (result.status == 'OK') {
+                      cont('OK');
+                  } else {
+                      cont('NG');
+                  }
+              }).fail(function() {
+                  cont('NG');
               });
     },
 
@@ -92,8 +106,9 @@ function CommentView() {
 }
 
 CommentView.prototype = {
-    initialize: function(model) {
+    initialize: function(model, readonly) {
         this.model = model;
+        this.readonly = readonly;
         this.cursorIndex = -1;
         this.editingIndex = -1;
         this._setup();
@@ -103,6 +118,13 @@ CommentView.prototype = {
     _setup: function() {
         this.commentEditElem = $("#comment_edit");
         this.commentElem = $("[name='comment']");
+
+        if (!this.readonly) {
+            this._setupForWrite();
+        }
+    },
+
+    _setupForWrite: function() {
         var self = this;
 
         var linesElem = $("#source ol");
@@ -126,9 +148,13 @@ CommentView.prototype = {
                 var commentElemClone = self.commentElem.clone(false);
                 commentElemClone.find("[name='container']").text(commentText);
                 self.commentEditElem.after(commentElemClone);
-                self.model.setComment(self.editingIndex, commentText, function(status) {});
+                self.model.setComment(self.editingIndex, commentText, function(status) {
+                    self._handleAPIStatus(status);
+                });
             } else {
-                self.model.deleteComment(self.editingIndex, function(status) {});
+                self.model.deleteComment(self.editingIndex, function(status) {
+                    self._handleAPIStatus(status);
+                });
             }
             $(this).val("");
             self.commentEditElem.detach();
@@ -148,5 +174,15 @@ CommentView.prototype = {
             commentElemClone.find("[name='container']").text(text);
             $(li).prepend(commentElemClone);
         });
+    },
+
+    _handleAPIStatus: function(status) {
+        if (status != 'OK') {
+            this._reportError("Failed to update comment");
+        }
+    },
+
+    _reportError: function(message) {
+        window.alert(message);
     }
 };

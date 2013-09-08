@@ -17,6 +17,10 @@ require_relative './model.rb'
 
 $stdout.sync = true
 
+configure do
+  enable :sessions
+end
+
 configure :development do
   require 'sinatra/reloader'
   use Rack::CommonLogger
@@ -192,18 +196,12 @@ end
 
 # APIs ----------
 
-# TEMP
-logged_in_user = DB::User.first_or_create(:name => 'yoshizow', :provider => 'github')
-
 # API: get comments for specified file
 get '/:user/:project/:revision/files/*/comments' do |user_name, proj_name, revision, path|
   project = Project.create(user_name, proj_name, revision)
   halt 404  if project == nil
-  p [:project, project]
 
-  p [:path, path]
   blob = project.gitobj_for_path(path)
-  p [:blob, blob]
   halt 404  if blob == nil
   halt 404  if blob.is_tree?
   
@@ -214,6 +212,9 @@ end
 
 # API: add new comment
 post '/:user/:project/:revision/files/*/comments/new' do |user_name, proj_name, revision, path|
+  halt 404  if !session[:logged_in_user]
+  logged_in_user = DB::User.first_or_create(:name => session[:logged_in_user], :provider => DEFAULT_PROVIDER)
+
   project = Project.create(user_name, proj_name, revision)
   halt 404  if project == nil
 
@@ -221,19 +222,30 @@ post '/:user/:project/:revision/files/*/comments/new' do |user_name, proj_name, 
   line = params['line']
   text = params['text']
 
-  project.add_comment(logged_in_user, path, line, text)
+  begin
+    project.add_comment(logged_in_user, path, line, text)
+  rescue ForbiddenError
+    halt 403
+  end
 
   json 'status' => 'OK'
 end
 
 # API: remove comment
 delete '/:user/:project/:revision/files/*/comments/:line' do |user_name, proj_name, revision, path, line|
+  halt 404  if !session[:logged_in_user]
+  logged_in_user = DB::User.first_or_create(:name => session[:logged_in_user], :provider => DEFAULT_PROVIDER)
+
   project = Project.create(user_name, proj_name, revision)
   halt 404  if project == nil
 
-  project.delete_comment(logged_in_user, path, line)
+  begin
+    project.delete_comment(logged_in_user, path, line)
+  rescue ForbiddenError
+    halt 403
+  end
 
-  json 'status' => 'ok'
+  json 'status' => 'OK'
 end
 
 # views ----------
@@ -243,15 +255,34 @@ get '/' do
   locals = { :list => Project.list.collect do |e|
                { 'url'  => "/#{e.user.name}/#{e.name}/#{e.revision}/",
                  'name' => "#{e.user.name}/#{e.name}/#{e.revision}" }
-             end
+             end,
+             :logged_in_user => session[:logged_in_user]
            }
   liquid :project_index, :locals => locals
+end
+
+get '/login' do
+  liquid :login
+end
+
+post '/session' do
+  username = request.params['username']
+  halt 404 if !username || username.empty?
+  session[:logged_in_user] = username
+  puts "Logged in as #{username}"
+  redirect '/'
+end
+
+get '/logout' do
+  puts "Logged out from #{session[:logged_in_user]}"
+  session.delete(:logged_in_user)
+  redirect '/'
 end
 
 # view: tree or blob
 get '/:user/:project/:revision/*' do |user_name, proj_name, revision, path|
   project = Project.create(user_name, proj_name, revision)
-  halt 404  if project == nil
+  halt 404, 'Project not found.'  if project == nil
   path = path.chomp('/')
 
   gitobj = project.gitobj_for_path(path)
@@ -273,7 +304,8 @@ get '/:user/:project/:revision/*' do |user_name, proj_name, revision, path|
                :proj_name => project.name,
                :revision => project.revision,
                :data => Rack::Utils.escape_html(gitobj.data),
-               :path => path }
+               :path => path,
+               :readonly => session[:logged_in_user] ? "false" : "true" }
     liquid :blob, :locals => locals
   end
 end
