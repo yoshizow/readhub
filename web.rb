@@ -85,7 +85,7 @@ class Project
   end
 
   def url_for_path(path)
-    return '/' + [@db_project.user.name, @db_project.name, @db_project.revision, path].join('/').gsub(%r!//+!, '/')
+    return "/#{@db_project.user.name}/#{@db_project.name}/code/#{@db_project.revision}/#{path}".gsub(%r!//+!, '/')
   end
 
   def get_comments(path)
@@ -253,7 +253,7 @@ end
 # view: root index
 get '/' do
   locals = { :list => Project.list.collect do |e|
-               { 'url'  => "/#{e.user.name}/#{e.name}/#{e.revision}/",
+               { 'url'  => "/#{e.user.name}/#{e.name}/code/#{e.revision}/",
                  'name' => "#{e.user.name}/#{e.name}/#{e.revision}" }
              end,
              :logged_in_user => session[:logged_in_user]
@@ -270,17 +270,17 @@ post '/session' do
   halt 404 if !username || username.empty?
   session[:logged_in_user] = username
   puts "Logged in as #{username}"
-  redirect '/'
+  redirect to('/')
 end
 
 get '/logout' do
   puts "Logged out from #{session[:logged_in_user]}"
   session.delete(:logged_in_user)
-  redirect '/'
+  redirect to('/')
 end
 
 # view: tree or blob
-get '/:user/:project/:revision/*' do |user_name, proj_name, revision, path|
+get '/:user/:project/code/:revision/*' do |user_name, proj_name, revision, path|
   project = Project.create(user_name, proj_name, revision)
   halt 404, 'Project not found.'  if project == nil
   path = path.chomp('/')
