@@ -13,6 +13,8 @@ require_relative './model.rb'
 
 #include Test::Unit::Assertions
 
+APPLICATION_NAME = 'ReadHub'
+
 # configurations ----------
 
 $stdout.sync = true
@@ -253,7 +255,8 @@ end
 
 # view: root index
 get '/' do
-  locals = { :list => Project.list.collect do |e|
+  locals = { :title => "Projects - #{APPLICATION_NAME}",
+             :list => Project.list.collect do |e|
                { 'url'  => "/#{e.user.name}/#{e.name}/code/#{e.revision}/",
                  'name' => "#{e.user.name}/#{e.name}/#{e.revision}" }
              end,
@@ -263,7 +266,7 @@ get '/' do
 end
 
 get '/login' do
-  liquid :login
+  liquid :login, :locals => { :title => "Login - #{APPLICATION_NAME}" }
 end
 
 post '/session' do
@@ -289,7 +292,8 @@ get '/:user/:project/code/:revision/*' do |user_name, proj_name, revision, path|
   gitobj = project.gitobj_for_path(path)
   halt 404  if gitobj == nil
   if gitobj.is_tree?
-    locals = { :project_link_html => make_project_link_html(project),
+    locals = { :title => "#{project.name}/#{path} - #{APPLICATION_NAME}",
+               :project_link_html => make_project_link_html(project),
                :path_html => make_path_breadcrumb_html(project, path),
                :list => gitobj.list.collect do |e|
                  { 'url'     => project.url_for_path(path + '/' + e.name),
@@ -299,7 +303,8 @@ get '/:user/:project/code/:revision/*' do |user_name, proj_name, revision, path|
              }
     liquid :tree, :locals => locals
   else
-    locals = { :project_link_html => make_project_link_html(project),
+    locals = { :title => "#{project.name}/#{path} - #{APPLICATION_NAME}",
+               :project_link_html => make_project_link_html(project),
                :path_html => make_path_breadcrumb_html(project, path),
                :user_name => user_name,
                :proj_name => project.name,
@@ -333,7 +338,8 @@ get '/:user/:project/search' do |user_name, proj_name|
     redirect to("/#{user_name}/#{proj_name}/code/#{revision}/#{path}#L#{line}")
 
   else
-    locals = { :query => query,
+    locals = { :title => "Search result for '#{query}' - #{APPLICATION_NAME}",
+               :query => query,
                :list  => list.collect do |path, line|
                  { 'url'     => project.url_for_path(path + '#L' + line),
                    'name'    => path + ':' + line }

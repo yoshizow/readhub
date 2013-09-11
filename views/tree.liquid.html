@@ -1,11 +1,6 @@
-<html>
-<head>
-<meta charset="UTF-8">
-<title>ReadHub</title>
-</head>
+<!-- head -->
 
-<body>
-
+<!-- body -->
 <p>{{ project_link_html }} &gt; {{ path_html }}</p>
 
 <ul>
@@ -13,7 +8,3 @@
  <li><a href="{{ e.url }}">{{ e.name | escape }}{% if e.is_tree %}/{% endif %}</a>
 {% endfor %}
 </ul>
-
-</body>
-
-</html>
