@@ -3,6 +3,10 @@ pre.prettyprint {
     font-size: 12px;
 }
 
+span.pln:hover, span.typ:hover {
+    text-decoration: underline;
+}
+
 textarea.comment_edit {
     width: 40em;
     height: 2.5em;
@@ -20,4 +24,8 @@ textarea.comment_edit {
 .comment {
     color: #800;
     font-weight: bold;
+}
+
+li.highlight {
+    background-color: #ffff88;
 }

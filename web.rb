@@ -23,6 +23,7 @@ end
 
 configure :development do
   require 'sinatra/reloader'
+  enable :logging
   use Rack::CommonLogger
 end
 
@@ -307,5 +308,37 @@ get '/:user/:project/code/:revision/*' do |user_name, proj_name, revision, path|
                :path => path,
                :readonly => session[:logged_in_user] ? "false" : "true" }
     liquid :blob, :locals => locals
+  end
+end
+
+get '/:user/:project/search' do |user_name, proj_name|
+  revision = request.params['revision']
+  path = request.params['path']
+  line = request.params['line']
+  query = request.params['query']
+  halt 404 if revision == nil || path == nil || line == nil || query == nil
+
+  project = Project.create(user_name, proj_name, revision)
+  halt 404, 'Project not found.'  if project == nil
+
+  path = path.chomp('/')
+
+  # TODO: prevent injection
+  logger.info("executing: cd /home/yoshi/work/readhub/data/mruby; global --from-here #{line}:#{path} --result=ctags #{query}")
+  list = IO.popen("cd /home/yoshi/work/readhub/data/mruby; global --from-here #{line}:#{path} --result=ctags #{query}", 'r') do |io|
+    io.readlines.map { |line| line.chomp.split("\t")[1..2] }
+  end
+  if list.length == 1
+    path, line = list[0]
+    redirect to("/#{user_name}/#{proj_name}/code/#{revision}/#{path}#L#{line}")
+
+  else
+    locals = { :query => query,
+               :list  => list.collect do |path, line|
+                 { 'url'     => project.url_for_path(path + '#L' + line),
+                   'name'    => path + ':' + line }
+               end
+    }
+    liquid :search_result, :locals => locals
   end
 end

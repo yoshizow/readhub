@@ -1,0 +1,22 @@
+<html>
+<head>
+<meta charset="UTF-8">
+<title>ReadHub</title>
+</head>
+
+<body>
+
+{% if list.length == 0 %}
+  <p>No match found.</p>
+{% else %}
+  <p>Search results for '{{ query | escape }}':</p>
+  <ul>
+  {% for e in list %}
+   <li><a href="{{ e.url }}">{{ e.name | escape }}</a>
+  {% endfor %}
+  </ul>
+{% endif %}
+
+</body>
+
+</html>

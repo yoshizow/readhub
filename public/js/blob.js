@@ -129,7 +129,7 @@ CommentView.prototype = {
 
         var linesElem = $("#source ol");
         linesElem.on("mouseover", "li", function(ev) {
-            self.cursorIndex = linesElem.children().index(this);
+            self.cursorIndex = $(this).index();
             var ofs = $(this).offset();
             ofs.left -= 30;
             $("#cursor").offset(ofs).show();
@@ -184,5 +184,29 @@ CommentView.prototype = {
 
     _reportError: function(message) {
         window.alert(message);
+    }
+};
+
+function XRefAttacher() {
+    this.initialize.apply(this, arguments);
+}
+
+XRefAttacher.prototype = {
+    initialize: function(element, user_name, proj_name, revision, path) {
+        this.element = element;
+        this.searchUrl = '/' + user_name + '/' + proj_name + '/search?revision=' + revision + '&path=' + encodeURIComponent(path);
+    },
+
+    run: function() {
+        var self = this;
+        var onSymbolClicked = function(ev) {
+            var symbol = this.textContent.trim();
+            if (symbol != '') {
+                var line = $(this).parents('li').index() + 1;
+                document.location = self.searchUrl + '&line=' + line + '&query=' + encodeURIComponent(symbol);
+            }
+        };
+        this.element.on('click', 'span.pln', onSymbolClicked);
+        this.element.on('click', 'span.typ', onSymbolClicked);
     }
 };

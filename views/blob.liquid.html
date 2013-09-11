@@ -16,7 +16,19 @@ $(document).ready(function() {
     var path = "{{ path }}";
     var commentModel = new CommentModel();
     var persistentCommentModel = new PersistentCommentModel(commentModel, user_name, proj_name, revision, path);
-    prettyPrint();
+    prettyPrint(function() {
+        var xrefAttacher = new XRefAttacher($('#source'), user_name, proj_name, revision, path);
+        xrefAttacher.run();
+        var match;
+        if (location.hash && (match = location.hash.match(/\d+/))) {
+            var line = Number(match[0]) - 1;
+            var linesElem = $("#source ol");
+            var li = linesElem.children()[line];
+            $(li).addClass('highlight');
+            var pos = $(li).offset().top - 100;
+            $('html,body').animate({ scrollTop: pos }, 'fast');
+        }
+    });
     persistentCommentModel.getAllComments(function(status) {
         var commentView = new CommentView(persistentCommentModel, {{ readonly }});
     });
