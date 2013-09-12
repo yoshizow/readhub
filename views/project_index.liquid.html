@@ -3,14 +3,6 @@
 <!-- body -->
 <h3>Projects</h3>
 
-<p>
-{% if logged_in_user != nil %}
-    Logged in as {{ logged_in_user }} <a href="/logout">Logout</a>
-{% else %}
-    <a href="/login">Login</a>
-{% endif %}
-</p>
-
 <ul>
 {% for e in list %}
  <li><a href="{{ e.url }}">{{ e.name | escape }}</a>

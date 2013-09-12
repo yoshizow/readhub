@@ -299,7 +299,8 @@ get '/:user/:project/code/:revision/*' do |user_name, proj_name, revision, path|
                  { 'url'     => project.url_for_path(path + '/' + e.name),
                    'name'    => e.name,
                    'is_tree' => e.is_tree }
-               end
+               end,
+               :logged_in_user => session[:logged_in_user]
              }
     liquid :tree, :locals => locals
   else
@@ -311,7 +312,9 @@ get '/:user/:project/code/:revision/*' do |user_name, proj_name, revision, path|
                :revision => project.revision,
                :data => Rack::Utils.escape_html(gitobj.data),
                :path => path,
-               :readonly => session[:logged_in_user] ? "false" : "true" }
+               :readonly => session[:logged_in_user] ? "false" : "true",
+               :logged_in_user => session[:logged_in_user]
+             }
     liquid :blob, :locals => locals
   end
 end
@@ -343,7 +346,8 @@ get '/:user/:project/search' do |user_name, proj_name|
                :list  => list.collect do |path, line|
                  { 'url'     => project.url_for_path(path + '#L' + line),
                    'name'    => path + ':' + line }
-               end
+               end,
+               :logged_in_user => session[:logged_in_user]
     }
     liquid :search_result, :locals => locals
   end
