@@ -332,13 +332,13 @@ get '/:user/:project/search' do |user_name, proj_name|
   path = path.chomp('/')
 
   # TODO: prevent injection
-  logger.info("executing: cd /home/yoshi/work/readhub/data/mruby; global --from-here #{line}:#{path} --result=ctags #{query}")
-  list = IO.popen("cd /home/yoshi/work/readhub/data/mruby; global --from-here #{line}:#{path} --result=ctags #{query}", 'r') do |io|
+  logger.info("executing: cd /home/yoshi/work/readhub/data/#{project.name}; global --from-here #{line}:#{path} --result=ctags #{query}")
+  list = IO.popen("cd /home/yoshi/work/readhub/data/#{project.name}; global --from-here #{line}:#{path} --result=ctags #{query}", 'r') do |io|
     io.readlines.map { |line| line.chomp.split("\t")[1..2] }
   end
   if list.length == 1
     path, line = list[0]
-    redirect to("/#{user_name}/#{proj_name}/code/#{revision}/#{path}#L#{line}")
+    redirect to("/#{user_name}/#{project.name}/code/#{revision}/#{path}#L#{line}")
 
   else
     locals = { :title => "Search result for '#{query}' - #{APPLICATION_NAME}",
