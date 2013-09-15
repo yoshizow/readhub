@@ -3,6 +3,7 @@ source 'https://rubygems.org'
 gem 'sinatra'
 gem 'sinatra-contrib'
 gem 'sinatra-reloader', :group => :development
+gem 'sinatra-flash'
 gem 'thin'
 gem 'liquid'
 gem 'rake'

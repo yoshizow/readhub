@@ -3,6 +3,7 @@
 
 require 'sinatra'
 require 'sinatra/json'
+require 'sinatra/flash'
 require 'rugged'
 require 'liquid'
 require 'json'
@@ -197,6 +198,15 @@ def make_project_link_html(project)
   return linkify(Rack::Utils.escape_html("#{project.name}-#{project.revision}"), project.url_for_path('/'))
 end
 
+def bootstrap_flash
+  flash.map do |type, message|
+    cls = { notice: 'alert-success',
+            error: 'alert-danger' }[type]
+    "<div class='alert #{cls} fade in'>#{Rack::Utils.escape_html(message)}
+     <a class='close' data-dismiss='alert' href='#' aria-hidden='true'>&times;</a></div>"
+  end.join
+end
+
 # APIs ----------
 
 # API: get comments for specified file
@@ -281,6 +291,53 @@ get '/logout' do
   puts "Logged out from #{session[:logged_in_user]}"
   session.delete(:logged_in_user)
   redirect to('/')
+end
+
+get '/settings/ssh' do
+  halt 404  if !session[:logged_in_user]
+  db_user = DB::User.first(:name => session[:logged_in_user], :provider => DEFAULT_PROVIDER)
+  halt 404 if db_user == nil
+
+  db_public_key = db_user.public_keys.first
+  if db_public_key != nil
+    key = db_public_key.public_key
+  else
+    key = ""
+  end
+
+  locals = { :title => "SSH Keys - #{APPLICATION_NAME}",
+             :flash_messages => bootstrap_flash,
+             :logged_in_user => db_user.name,
+             :key => key
+           }
+  liquid :settings_ssh, :locals => locals
+end
+
+post '/account/public_keys' do
+  key = request.params['key']
+  halt 404 if !key
+  halt 404  if !session[:logged_in_user]
+  db_user = DB::User.first(:name => session[:logged_in_user], :provider => DEFAULT_PROVIDER)
+  halt 404 if db_user == nil
+  
+  key = key.strip
+  if key.empty?
+    db_public_key = db_user.public_keys.first
+    if db_public_key != nil
+      db_public_key.destroy
+    end
+  else
+    db_public_key = db_user.public_keys.first
+    now = Time.now
+    if db_public_key != nil
+      db_public_key.update(:public_key => key, :modified_at => now)
+    else
+      db_user.public_keys.create(:public_key => key, :modified_at => now)
+    end
+  end
+
+  flash[:notice] = "Saved."
+  redirect to('/settings/ssh')
 end
 
 # view: tree or blob

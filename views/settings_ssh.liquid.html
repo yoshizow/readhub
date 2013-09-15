@@ -1,0 +1,14 @@
+<!-- head -->
+
+<!-- body -->
+{{ flash_messages }}
+
+<h3>SSH Keys</h3>
+
+<form action="/account/public_keys" method="POST" class="form-horizontal">
+  <div class="form-group">
+    <label for="key">Key</label>
+    <textarea name="key" class="form-control">{{ key | escape }}</textarea>
+  </div>
+  <button type="submit" class="btn btn-default">Save</button>
+</form>

@@ -17,8 +17,19 @@ module DB
     property :provider, String, :required => true
     property :name,     String, :required => true
 
+    has n, :public_keys
     has n, :projects
     has n, :comments
+  end
+
+  class PublicKey
+    include DataMapper::Resource
+
+    property :id,          Serial
+    property :public_key,  Text,     :required => true
+    property :modified_at, DateTime, :required => true
+
+    belongs_to :user
   end
 
   class Project
