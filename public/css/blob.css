@@ -11,14 +11,11 @@ textarea.comment_edit {
     width: 40em;
     height: 2.5em;
     vertical-align: top;
+    border: 1px solid;
+    border-radius: 4px 4px 4px 4px;
 }
 
 #cursor {
-    font-size: 12px;
-    background-image: url("/images/arrow.gif");
-    background-repeat: no-repeat;
-    width: 12px;
-    height: 12px;
 }
 
 .comment {
