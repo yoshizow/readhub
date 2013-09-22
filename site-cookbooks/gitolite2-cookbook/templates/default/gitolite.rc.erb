@@ -1,0 +1,83 @@
+%RC = (
+    UMASK                       =>  <%= @umask -%>,
+    GIT_CONFIG_KEYS             =>  '.*',
+    LOG_EXTRA                   =>  1,
+<% unless @local_code.nil? %>
+    LOCAL_CODE                  =>  '<%= @local_code %>',
+<% end %>
+    ROLES                       =>
+        {
+            READERS             =>  1,
+            WRITERS             =>  1,
+        },
+    COMMANDS                    =>
+        {
+            'help'              =>  1,
+            'desc'              =>  1,
+            'info'              =>  1,
+            'perms'             =>  1,
+            'writable'          =>  1,
+        },
+    SYNTACTIC_SUGAR             =>
+        [
+<% unless @syntactic_sugar.nil? %><% @syntactic_sugar.each { |script| %>
+            '<%= script %>',
+<% } %><% end %>
+        ],
+    INPUT                       =>
+        [
+<% unless @input.nil? %><% @input.each { |script| %>
+            '<%= script %>',
+<% } %><% end %>
+        ],
+    ACCESS_1                    =>
+        [
+<% unless @access_1.nil? %><% @access_1.each { |script| %>
+            '<%= script %>',
+<% } %><% end %>
+        ],
+    PRE_GIT                     =>
+        [
+<% unless @pre_git.nil? %><% @pre_git.each { |script| %>
+            '<%= script %>',
+<% } %><% end %>
+        ],
+    ACCESS_2                    =>
+        [
+<% unless @access_2.nil? %><% @access_2.each { |script| %>
+            '<%= script %>',
+<% } %><% end %>
+        ],
+    POST_GIT                    =>
+        [
+<% unless @post_git.nil? %><% @post_git.each { |script| %>
+            '<%= script %>',
+<% } %><% end %>
+        ],
+    PRE_CREATE                  =>
+        [
+<% unless @pre_create.nil? %><% @pre_create.each { |script| %>
+            '<%= script %>',
+<% } %><% end %>
+        ],
+    POST_CREATE                 =>
+        [
+            'post-compile/update-git-configs',
+            'post-compile/update-gitweb-access-list',
+            'post-compile/update-git-daemon-access-list',
+<% unless @post_create.nil? %><% @post_create.each { |script| %>
+            '<%= script %>',
+<% } %><% end %>
+        ],
+    POST_COMPILE                =>
+        [
+            'post-compile/ssh-authkeys',
+            'post-compile/update-git-configs',
+            'post-compile/update-gitweb-access-list',
+            'post-compile/update-git-daemon-access-list',
+<% unless @post_compile.nil? %><% @post_compile.each { |script| %>
+            '<%= script %>',
+<% } %><% end %>
+        ],
+);
+1;
