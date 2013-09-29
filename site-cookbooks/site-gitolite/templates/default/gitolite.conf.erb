@@ -1,0 +1,9 @@
+# -*- conf -*-
+
+repo gitolite-admin
+     RW+ = admin
+
+repo CREATOR/[^/][^/]*
+    C       =   @all
+    RW+     =   CREATOR
+    - VREF/readhub-update-hook = @all

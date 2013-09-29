@@ -1,0 +1,10 @@
+#!/bin/sh
+
+ref="$1"
+
+if [ "$ref" != "refs/heads/master" ] ; then
+   exit 0
+fi
+
+echo "readhub-update-hook: args: $@"
+exit 0

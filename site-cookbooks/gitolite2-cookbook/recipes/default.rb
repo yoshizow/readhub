@@ -6,6 +6,7 @@
 # Copyright 2012, Gerald L. Hevener Jr., M.S.
 # Copyright 2012, Eric G. Wolfe
 # Copyright 2012, Ryosuke IWANAGA
+# Copyright 2013, Yoshitaro Makise
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,10 +19,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 #
-if node['gitolite2']['public_key'].nil? and node['gitolite2']['public_key_path'].nil?
-  Chef::Log.fatal("You must pass your public key content by gitolite/public_key or public_key_path")
-  raise Chef::Exceptions
-end
 if !node['gitolite2']['public_key'].nil? and !node['gitolite2']['public_key_path'].nil?
   Chef::Log.fatal("either gitolite/public_key or public_key_path")
   raise Chef::Exceptions
@@ -63,6 +60,18 @@ directory "#{node['gitolite2']['home']}/.ssh" do
   owner node['gitolite2']['user']
   group node['gitolite2']['group']
   mode 0700
+end
+
+# Generate key pair for admin
+if node['gitolite2']['public_key'].nil? and node['gitolite2']['public_key_path'].nil?
+  execute "ssh-keygen -t rsa -f #{node['gitolite2']['home']}/.ssh/id_rsa -N '' -C gitolite" do
+    creates "#{node['gitolite2']['home']}/.ssh/id_rsa"
+    user node['gitolite2']['user']
+    group node['gitolite2']['group']
+    cwd "#{node['gitolite2']['home']}"
+    environment "HOME" => "#{node['gitolite2']['home']}"
+  end
+  node.override['gitolite2']['public_key_path'] = "#{node['gitolite2']['home']}/.ssh/id_rsa.pub"
 end
 
 # Gitolite.rc template
@@ -133,4 +142,3 @@ execute "gitolite setup" do
   command "#{node['gitolite2']['home']}/bin/gitolite setup -pk #{key_file}"
   not_if "grep -q \"`cat #{key_file}`\" #{node['gitolite2']['home']}/.ssh/authorized_keys"
 end
-

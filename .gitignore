@@ -1,1 +1,5 @@
 db.sqlite
+.vagrant/
+Berksfile.lock
+vendor/
+.bundle/
