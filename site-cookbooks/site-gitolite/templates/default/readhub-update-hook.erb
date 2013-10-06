@@ -1,10 +1,14 @@
 #!/bin/sh
 
 ref="$1"
+rev="$3"
 
 if [ "$ref" != "refs/heads/master" ] ; then
    exit 0
 fi
 
 echo "readhub-update-hook: args: $@"
+
+/usr/local/bin/checkout-and-index-wrapper $GL_REPO_BASE $GL_REPO $rev
+
 exit 0

@@ -1,0 +1,22 @@
+#!/bin/bash -p
+# usage: $0 repo_base repo rev
+
+INDICES_DIR=/var/readhub/indices
+
+export PATH=/usr/local/bin:/usr/bin:/bin
+umask 022
+
+set -e
+
+repo_base="$1"
+repo="$2"
+rev="$3"
+
+index_dir=$INDICES_DIR/"$repo"/"$rev"
+mkdir -p "$index_dir"/src
+echo [$(date)] Checking out...
+git --git-dir="$repo_base"/"$repo".git archive "$rev" | tar xf - -C "$index_dir"/src
+cd "$index_dir"
+echo [$(date)] Indexing...
+gtags
+echo [$(date)] Done.

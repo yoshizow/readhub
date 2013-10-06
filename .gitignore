@@ -3,3 +3,4 @@ db.sqlite
 Berksfile.lock
 vendor/
 .bundle/
+indexer/bin/checkout-and-index-wrapper
