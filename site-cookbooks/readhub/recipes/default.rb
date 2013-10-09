@@ -14,7 +14,7 @@ rbenv_gem 'thin' do
   action :install
 end
 
-cookbook_file '/etc/init.d/thin' do
+cookbook_file '/etc/init.d/readhub-web' do
   mode 0755
   owner 'root'
   group 'root'
@@ -26,7 +26,7 @@ directory '/etc/thin' do
   group 'root'
 end
 
-cookbook_file '/etc/thin/thin.yml' do
+cookbook_file '/etc/thin/readhub-web.yml' do
   mode 0644
   owner 'root'
   group 'root'
@@ -44,7 +44,7 @@ execute 'bundle install' do
   environment ({'HOME' => '/vagrant'})
 end
 
-service 'thin' do
+service 'readhub-web' do
   supports :start => true, :stop => true, :restart => true
   action [:enable, :start]
 end

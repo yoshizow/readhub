@@ -1,4 +1,3 @@
-#!/usr/bin/env ruby
 # -*- coding: utf-8 -*-
 
 require 'sinatra'
@@ -22,11 +21,11 @@ $stdout.sync = true
 
 configure do
   enable :sessions
+  enable :logging
 end
 
 configure :development do
   require 'sinatra/reloader'
-  enable :logging
   use Rack::CommonLogger
 end
 
