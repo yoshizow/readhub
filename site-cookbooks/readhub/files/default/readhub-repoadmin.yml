@@ -1,0 +1,13 @@
+rackup: repoadmin.ru
+address: 127.0.0.1
+port: 4000
+environment: development
+daemonize: true
+log: /var/log/thin/readhub-repoadmin.log
+pid: /var/run/thin/readhub-repoadmin.pid
+user: www-data
+group: www-data
+servers: 1
+max_conns: 1024
+max_persistent_conns: 100
+require: []

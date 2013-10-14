@@ -1,12 +1,12 @@
 #!/bin/sh
 ### BEGIN INIT INFO
-# Provides:          readhub-web
+# Provides:          readhub-repoadmin
 # Required-Start:    $local_fs $remote_fs
 # Required-Stop:     $local_fs $remote_fs
 # Default-Start:     2 3 4 5
 # Default-Stop:      S 0 1 6
-# Short-Description: readhub-web initscript
-# Description:       readhub-web
+# Short-Description: readhub-repoadmin initscript
+# Description:       readhub-repoadmin
 ### END INIT INFO
  
 # Original author: Forrest Robertson
@@ -14,10 +14,10 @@
 # Do NOT "set -e"
  
 DAEMON='bundle exec /usr/local/rbenv/shims/thin'
-SCRIPT_NAME=/etc/init.d/readhub-web
-CONFIG_FILE=/etc/thin/readhub-web.yml
+SCRIPT_NAME=/etc/init.d/readhub-repoadmin
+CONFIG_FILE=/etc/thin/readhub-repoadmin.yml
 APP_PATH=/vagrant
- 
+
 # libgit2 sees running process's HOME
 export HOME=/var/www
  

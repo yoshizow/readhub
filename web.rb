@@ -225,7 +225,8 @@ end
 # API: add new comment
 post '/:user/:project/:revision/files/*/comments/new' do |user_name, proj_name, revision, path|
   halt 404  if !session[:logged_in_user]
-  logged_in_user = DB::User.first_or_create(:name => session[:logged_in_user], :provider => DEFAULT_PROVIDER)
+  logged_in_user = DB::User.first(:name => session[:logged_in_user], :provider => DEFAULT_PROVIDER)
+  halt 404 if logged_in_user == nil
 
   project = Project.create(user_name, proj_name, revision)
   halt 404  if project == nil
@@ -246,7 +247,8 @@ end
 # API: remove comment
 delete '/:user/:project/:revision/files/*/comments/:line' do |user_name, proj_name, revision, path, line|
   halt 404  if !session[:logged_in_user]
-  logged_in_user = DB::User.first_or_create(:name => session[:logged_in_user], :provider => DEFAULT_PROVIDER)
+  logged_in_user = DB::User.first(:name => session[:logged_in_user], :provider => DEFAULT_PROVIDER)
+  halt 404 if logged_in_user == nil
 
   project = Project.create(user_name, proj_name, revision)
   halt 404  if project == nil
@@ -282,6 +284,8 @@ post '/session' do
   username = request.params['username']
   halt 404 if !username || username.empty?
   session[:logged_in_user] = username
+  db_user = DB::User.first_or_create(:name => username, :provider => DEFAULT_PROVIDER)
+  db_user.save!
   puts "Logged in as #{username}"
   redirect to('/')
 end

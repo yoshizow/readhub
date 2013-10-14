@@ -2,7 +2,7 @@
 
 require 'data_mapper'
 
-LOCAL_DATABASE_URL = 'sqlite3:db.sqlite'
+LOCAL_DATABASE_URL = 'sqlite3:/var/readhub/db.sqlite'
 
 DataMapper::Logger.new($stdout, :debug)
 
