@@ -1,9 +1,8 @@
 site :opscode
 
 cookbook 'apt'    # for "apt-get update"
-cookbook 'gitolite2',     path: 'site-cookbooks/gitolite2-cookbook'
-cookbook 'site-gitolite', path: 'site-cookbooks/site-gitolite'
-cookbook 'global',        path: 'site-cookbooks/global'
+cookbook 'gitolite2',   git: 'https://github.com/riywo/gitolite2-cookbook'
+cookbook 'global',      path: 'site-cookbooks/global'
 cookbook 'ruby_build'
-cookbook 'rbenv',         git: 'https://github.com/fnichol/chef-rbenv'
-cookbook 'readhub',       path: 'site-cookbooks/readhub'
+cookbook 'rbenv',       git: 'https://github.com/fnichol/chef-rbenv'
+cookbook 'readhub',     path: 'site-cookbooks/readhub'

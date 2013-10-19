@@ -33,7 +33,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
     chef.run_list = [
         "apt",     # perform "apt-get update"
-        "site-gitolite",
         "readhub"
     ]
   end
