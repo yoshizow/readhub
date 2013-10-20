@@ -6,6 +6,7 @@ require 'sinatra/flash'
 require 'rugged'
 require 'liquid'
 require 'json'
+require 'rest_client'
 require 'pp'
 #require 'test/unit'
 
@@ -31,6 +32,8 @@ end
 
 # handle views/*.liquid.html as Liquid templates
 Tilt.prefer Tilt::LiquidTemplate, '.liquid.html'
+
+REPOADMIN_SERVER_URL = 'http://localhost:4000'
 
 # models ----------
 
@@ -328,6 +331,7 @@ post '/account/public_keys' do
     db_public_key = db_user.public_keys.first
     if db_public_key != nil
       db_public_key.destroy
+      RestClient.post "#{REPOADMIN_SERVER_URL}/certs/#{db_user.name}/delete", key, :content_type => "application/octet-stream"
     end
   else
     db_public_key = db_user.public_keys.first
@@ -337,6 +341,7 @@ post '/account/public_keys' do
     else
       db_user.public_keys.create(:public_key => key, :modified_at => now)
     end
+    RestClient.post "#{REPOADMIN_SERVER_URL}/certs/#{db_user.name}/new", key, :content_type => "application/octet-stream"
   end
 
   flash[:notice] = "Saved."
