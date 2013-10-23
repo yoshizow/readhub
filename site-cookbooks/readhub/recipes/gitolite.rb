@@ -41,6 +41,7 @@ execute "ssh-keygen -t rsa -f #{ADMIN_SSH_HOME}/.ssh/id_rsa -N '' -C gitolite" d
 end
 
 node.override['gitolite2']['public_key_path'] = "#{ADMIN_SSH_HOME}/.ssh/id_rsa.pub"
+node.override['gitolite2']['local_code'] = "/vagrant/gitolite/local"
 
 #
 # Setup gitolite
@@ -75,12 +76,6 @@ template "#{ADMIN_HOME}/gitolite-admin/conf/gitolite.conf" do
   owner "www-data"
   group "www-data"
   mode 0644
-end
-
-template "/var/git/gitolite/src/VREF/readhub-update-hook" do
-  owner "git"
-  group "git"
-  mode 0755
 end
 
 bash "reconfigure gitolite" do
