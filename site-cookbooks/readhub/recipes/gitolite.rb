@@ -6,9 +6,10 @@
 # Copyright 2013, Yoshitaro Makise
 # 
 
-ADMIN_HOME = '/var/readhub'
+ADMIN_HOME = node['readhub']['readhub_home']
+ADMIN_SRC  = node['readhub']['readhub_src']
 ADMIN_SSH_HOME = '/var/www'    # www-data's real home directory where .ssh/ will be stored
-# TODO: make dedicated user for repoadmin, whose home directory is /var/readhub
+# TODO: make dedicated user for repoadmin, whose home directory is ADMIN_HOME
 
 directory "#{ADMIN_HOME}" do
   mode 0755
@@ -41,7 +42,7 @@ execute "ssh-keygen -t rsa -f #{ADMIN_SSH_HOME}/.ssh/id_rsa -N '' -C gitolite" d
 end
 
 node.override['gitolite2']['public_key_path'] = "#{ADMIN_SSH_HOME}/.ssh/id_rsa.pub"
-node.override['gitolite2']['local_code'] = "/vagrant/gitolite/local"
+node.override['gitolite2']['local_code'] = "#{ADMIN_SRC}/gitolite/local"
 
 #
 # Setup gitolite

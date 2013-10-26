@@ -7,13 +7,16 @@
 
 include_recipe 'global'
 
-directory '/var/readhub' do
+READHUB_HOME = node['readhub']['readhub_home']
+READHUB_SRC = node['readhub']['readhub_src']
+
+directory "#{READHUB_HOME}" do
   mode 0755
   owner 'www-data'
   group 'www-data'
 end
 
-directory '/var/readhub/indices' do
+directory "#{READHUB_HOME}/indices" do
   mode 0755
   owner 'www-data'
   group 'www-data'
@@ -21,7 +24,7 @@ end
 
 execute 'install checkout-and-index' do
   command 'make install'
-  cwd '/vagrant/indexer'
+  cwd "#{READHUB_SRC}/indexer"
 end
 
 group 'git' do

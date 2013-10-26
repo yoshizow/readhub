@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 
 require 'data_mapper'
+require 'dotenv'
 
-LOCAL_DATABASE_URL = 'sqlite3:/var/readhub/db.sqlite'
+Dotenv.load('/etc/readhub.env')
 
 DataMapper::Logger.new($stdout, :debug)
 
-DataMapper.setup(:default, ENV['DATABASE_URL'] || LOCAL_DATABASE_URL)
+DataMapper.setup(:default, ENV['DATABASE_URL'])
 DataMapper::Model.raise_on_save_failure = true
 
 module DB

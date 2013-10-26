@@ -8,6 +8,9 @@
 include_recipe 'ruby_build'
 include_recipe 'rbenv::system'
 
+READHUB_HOME = node['readhub']['readhub_home']
+READHUB_SRC = node['readhub']['readhub_src']
+
 rbenv_gem 'thin' do
   action :install
 end
@@ -36,7 +39,7 @@ directory '/var/run/thin' do
   group 'www-data'
 end
 
-directory '/var/readhub' do
+directory "#{READHUB_HOME}" do
   mode 0755
   owner 'www-data'
   group 'www-data'
@@ -50,10 +53,10 @@ end
 
 execute 'migrate database' do
   command 'bundle exec rake db:migrate'
-  cwd '/vagrant'
+  cwd READHUB_SRC
   user  'www-data'
   group 'www-data'
-  environment ({'HOME' => '/vagrant'})
+  environment ({'HOME' => READHUB_SRC})
 end
 
 service 'readhub-web' do

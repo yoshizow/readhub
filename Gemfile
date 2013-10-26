@@ -13,3 +13,4 @@ gem 'dm-sqlite-adapter', :group => :development
 gem 'rugged'
 gem 'gitolite'
 gem 'rest-client'
+gem 'dotenv'

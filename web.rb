@@ -8,6 +8,7 @@ require 'liquid'
 require 'json'
 require 'rest_client'
 require 'pp'
+require 'dotenv'
 #require 'test/unit'
 
 require_relative './model.rb'
@@ -19,6 +20,8 @@ APPLICATION_NAME = 'ReadHub'
 # configurations ----------
 
 $stdout.sync = true
+
+Dotenv.load('/etc/readhub.env')
 
 configure do
   enable :sessions
@@ -397,8 +400,8 @@ get '/:user/:project/search' do |user_name, proj_name|
   path = path.chomp('/')
 
   # TODO: prevent injection
-  logger.info("executing: cd /home/yoshi/work/readhub/data/#{project.name}; global --from-here #{line}:#{path} --result=ctags #{query}")
-  list = IO.popen("cd /home/yoshi/work/readhub/data/#{project.name}; global --from-here #{line}:#{path} --result=ctags #{query}", 'r') do |io|
+  logger.info("executing: cd #{ENV['READHUB_HOME']}/indices/#{user_name}/#{project.name}/#{revision}/src; global --from-here #{line}:#{path} --result=ctags #{query}")
+  list = IO.popen("cd #{ENV['READHUB_HOME']}/indices/#{user_name}/#{project.name}/#{revision}/src; global --from-here #{line}:#{path} --result=ctags #{query}", 'r') do |io|
     io.readlines.map { |line| line.chomp.split("\t")[1..2] }
   end
   if list.length == 1
