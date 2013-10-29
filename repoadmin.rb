@@ -59,7 +59,7 @@ post '/certs/:user/delete' do |user_name|
   user = DB::User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
   halt 404  if user == nil
   
-  ga_repo = Gitolite::GitoliteAdmin.new("#{ENV['READHUB_HOME']/gitolite-admin")
+  ga_repo = Gitolite::GitoliteAdmin.new("#{ENV['READHUB_HOME']}/gitolite-admin")
   key_content = request.body.read
   key = Gitolite::SSHKey.from_string(key_content, user_name)
   ga_repo.rm_key(key)
