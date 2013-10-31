@@ -32,7 +32,13 @@ DEFAULT_PROVIDER = 'github'
 get '/repos/:user/:project/:revision/new' do |user_name, proj_name, revision|
   user = DB::User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
   halt 404  if user == nil
-  project = user.projects.first_or_new(:name => proj_name, :revision => revision)
+  project = user.projects.first(:name => proj_name, :revision => revision)
+  now = Time.now
+  if project != nil
+    project.update(:created_at => now)
+  else
+    project = user.projects.create(:name => proj_name, :revision => revision, :created_at => now)
+  end
   project.repo = DB::Repo.new(:path => "#{ENV['GITOLITE_HOME']}/repositories/#{user_name}/#{proj_name}.git")
   user.save
 
