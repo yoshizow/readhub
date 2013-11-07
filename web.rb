@@ -47,6 +47,24 @@ class Project
     return DB::Project.all()
   end
 
+  def self.list_for_user(user_name)
+    db_user = DB::User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
+    if db_user != nil
+      return db_user.projects.all()
+    else
+      return []
+    end
+  end
+
+  def self.list_for_user_proj(user_name, proj_name)
+    db_user = DB::User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
+    if db_user != nil
+      return db_user.projects.all(:name => proj_name)
+    else
+      return []
+    end
+  end
+
   def self.create(user_name, proj_name, revision)
     db_user = DB::User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
     if db_user != nil
@@ -214,6 +232,9 @@ end
 
 # APIs ----------
 
+# Remove trailing slash for every request paths
+before { request.path_info.sub! %r{/$}, '' }
+
 # API: get comments for specified file
 get '/:user/:project/:revision/files/*/comments' do |user_name, proj_name, revision, path|
   project = Project.create(user_name, proj_name, revision)
@@ -349,6 +370,30 @@ post '/account/public_keys' do
 
   flash[:notice] = "Saved."
   redirect to('/settings/ssh')
+end
+
+# view: repository index
+get '/:user' do |user_name|
+  locals = { :title => "Repositories - #{APPLICATION_NAME}",
+             :list => Project.list_for_user(user_name).collect do |e|
+               { 'url'  => "/#{e.user.name}/#{e.name}/code/#{e.revision}/",
+                 'name' => "#{e.name}/#{e.revision}" }
+             end,
+             :logged_in_user => session[:logged_in_user]
+           }
+  liquid :repo_index, :locals => locals
+end
+
+# view: revision index
+get '/:user/:project' do |user_name, proj_name|
+  locals = { :title => "Revisions - #{APPLICATION_NAME}",
+             :list => Project.list_for_user_proj(user_name, proj_name).collect do |e|
+               { 'url'  => "/#{e.user.name}/#{e.name}/code/#{e.revision}/",
+                 'name' => "#{e.revision}" }
+             end,
+             :logged_in_user => session[:logged_in_user]
+           }
+  liquid :revision_index, :locals => locals
 end
 
 # view: tree or blob

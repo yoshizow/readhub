@@ -1,0 +1,10 @@
+<!-- head -->
+
+<!-- body -->
+<h3>Revisions</h3>
+
+<ul>
+{% for e in list %}
+ <li><a href="{{ e.url }}">{{ e.name | escape }}</a>
+{% endfor %}
+</ul>
