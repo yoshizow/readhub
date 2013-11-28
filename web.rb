@@ -396,8 +396,7 @@ get '/:user/:project' do |user_name, proj_name|
   liquid :revision_index, :locals => locals
 end
 
-# view: tree or blob
-get '/:user/:project/code/:revision/*' do |user_name, proj_name, revision, path|
+def serve_gitobj(user_name, proj_name, revision, path)
   project = Project.create(user_name, proj_name, revision)
   halt 404, 'Project not found.'  if project == nil
   path = path.chomp('/')
@@ -430,6 +429,16 @@ get '/:user/:project/code/:revision/*' do |user_name, proj_name, revision, path|
              }
     liquid :blob, :locals => locals
   end
+end
+
+# view: tree or blob
+get '/:user/:project/code/:revision' do |user_name, proj_name, revision|
+  serve_gitobj(user_name, proj_name, revision, '/')
+end
+
+# view: tree or blob
+get '/:user/:project/code/:revision/*' do |user_name, proj_name, revision, path|
+  serve_gitobj(user_name, proj_name, revision, path)
 end
 
 get '/:user/:project/search' do |user_name, proj_name|
