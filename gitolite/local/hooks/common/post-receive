@@ -1,5 +1,6 @@
 #!/bin/bash
 
+exec > >(tee -a $GL_ADMIN_BASE/logs/post-receive.log) 2>&1
 set -e
 
 if [ "$GL_USER" = "admin" ] ; then
