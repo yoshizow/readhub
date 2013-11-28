@@ -42,17 +42,7 @@ module DB
     property :created_at, DateTime, :required => true
 
     has n, :files
-    has 1, :repo    # 'repository' can't be used for field name, so use 'repo'
     belongs_to :user
-  end
-
-  class Repo    # Local repository
-    include DataMapper::Resource
-
-    property :id,       Serial
-    property :path,     String, :length => 1024, :required => true
-
-    belongs_to :project
   end
 
   class File

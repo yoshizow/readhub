@@ -81,14 +81,14 @@ class Project
 
   def initialize(db_project)
     @db_project = db_project
-    @db_repo = @db_project.repo
   end
 
   def name     ; @db_project.name     ; end
   def revision ; @db_project.revision ; end
 
   def gitobj_for_path(path)
-    repo = Rugged::Repository.new(@db_repo.path)
+    repo_path = "#{ENV['GITOLITE_HOME']}/repositories/#{@db_project.user.name}/#{@db_project.name}.git"
+    repo = Rugged::Repository.new(repo_path)
     begin
       commit = repo.lookup(@db_project.revision)
       root = commit.tree

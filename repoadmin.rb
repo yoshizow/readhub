@@ -39,7 +39,6 @@ get '/repos/:user/:project/:revision/new' do |user_name, proj_name, revision|
   else
     project = user.projects.create(:name => proj_name, :revision => revision, :created_at => now)
   end
-  project.repo = DB::Repo.new(:path => "#{ENV['GITOLITE_HOME']}/repositories/#{user_name}/#{proj_name}.git")
   user.save
 
   json 'status' => 'OK'
