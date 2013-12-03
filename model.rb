@@ -39,7 +39,7 @@ module DB
     property :id,       Serial
     property :name,     String, :required => true
     property :revision, String, :required => true
-    property :created_at, DateTime, :required => true
+    property :modified_at, DateTime, :required => true
 
     has n, :files
     belongs_to :user

@@ -35,9 +35,9 @@ get '/repos/:user/:project/:revision/new' do |user_name, proj_name, revision|
   project = user.projects.first(:name => proj_name, :revision => revision)
   now = Time.now
   if project != nil
-    project.update(:created_at => now)
+    project.update(:modified_at => now)
   else
-    project = user.projects.create(:name => proj_name, :revision => revision, :created_at => now)
+    project = user.projects.create(:name => proj_name, :revision => revision, :modified_at => now)
   end
   user.save
 
