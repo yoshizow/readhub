@@ -38,150 +38,11 @@ Tilt.prefer Tilt::LiquidTemplate, '.liquid.html'
 
 REPOADMIN_SERVER_URL = 'http://localhost:4000'
 
-# models ----------
-
-DEFAULT_PROVIDER = 'github'
-
-class Project
-  def self.list()
-    return DB::Project.all()
-  end
-
-  def self.list_for_user(user_name)
-    db_user = DB::User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
-    if db_user != nil
-      return db_user.projects.all()
-    else
-      return []
-    end
-  end
-
-  def self.list_for_user_proj(user_name, proj_name)
-    db_user = DB::User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
-    if db_user != nil
-      return db_user.projects.all(:name => proj_name)
-    else
-      return []
-    end
-  end
-
-  def self.create(user_name, proj_name, revision)
-    db_user = DB::User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
-    if db_user != nil
-      db_project = db_user.projects.first(:name => proj_name, :revision => revision)
-      if db_project != nil
-        return self.new(db_project)
-      else
-        return nil
-      end
-    else
-      return nil
-    end
-  end
-
-  def initialize(db_project)
-    @db_project = db_project
-  end
-
-  def name     ; @db_project.name     ; end
-  def revision ; @db_project.revision ; end
-
-  def gitobj_for_path(path)
-    repo_path = "#{ENV['GITOLITE_HOME']}/repositories/#{@db_project.user.name}/#{@db_project.name}.git"
-    repo = Rugged::Repository.new(repo_path)
-    begin
-      commit = repo.lookup(@db_project.revision)
-      root = commit.tree
-      if path != ''
-        info = root.path(path)
-        obj = repo.lookup(info[:oid])
-      else
-        obj = root
-      end
-      case obj
-      when Rugged::Tree
-        return GitTree.new(obj)
-      when Rugged::Blob
-        return GitBlob.new(obj)
-      else
-        raise 'Unknown object type: ' + obj
-      end
-    ensure
-      repo.close
-    end
-  end
-
-  def url_for_path(path)
-    return "/#{@db_project.user.name}/#{@db_project.name}/code/#{@db_project.revision}/#{path}".gsub(%r!//+!, '/')
-  end
-
-  def get_comments(path)
-    db_file = @db_project.files.first(:path => path)
-    if db_file != nil
-      db_comments = db_file.comments.all
-      return db_comments
-    else
-      return []
-    end
-  end
-
-  def add_comment(logged_in_user, path, line, text)
-    db_file = @db_project.files.first_or_create(:path => path)
-    db_comment = db_file.comments.first(:user => logged_in_user, :line => line)
-    now = Time.now
-    if db_comment != nil
-      db_comment.update(:text => text, :modified_at => now)
-    else
-      db_file.comments.create(:user => logged_in_user, :line => line, :text => text, :modified_at => now)
-    end
-  end
-
-  def delete_comment(logged_in_user, path, line)
-    db_file = @db_project.files.first_or_create(:path => path)
-    db_comments = db_file.comments.all(:user => logged_in_user, :line => line)
-    if db_comments != nil
-      db_comments.destroy
-    end
-  end
-end
-
-class GitBlob
-  def initialize(blob)
-    @blob = blob
-  end
-
-  def data
-    @blob.read_raw.data
-  end
-
-  def is_tree?
-    false
-  end
-end
-
-class GitTree
-  class Entry
-    def initialize(entry)
-      @name = entry[:name]
-      @is_tree = entry[:type] == :tree
-    end
-
-    attr_reader :name
-    attr_reader :is_tree
-  end
-
-  def initialize(tree)
-    @list = tree.map { |entry| Entry.new(entry) }
-  end
-
-  attr_reader :list
-
-  def is_tree?
-    true
-  end
-end
-
 # helper routines ----------
+
+def url_for_path(project, path)
+  return "/#{project.user.name}/#{project.name}/code/#{project.revision}/#{path}".gsub(%r!//+!, '/')
+end
 
 def linkify(html, url)
   return '<a href="' + url + '">' + html + '</a>'
@@ -209,7 +70,7 @@ def make_path_breadcrumb_html(project, path)
     #assert !path_components.include?('')
     list = path_components.each_with_index.collect do |name, idx|
              [name,
-              project.url_for_path(path_components[0..idx].join('/'))]
+              url_for_path(project, path_components[0..idx].join('/'))]
            end
     return list
   end
@@ -218,7 +79,7 @@ def make_path_breadcrumb_html(project, path)
 end
 
 def make_project_link_html(project)
-  return linkify(Rack::Utils.escape_html("#{project.name}-#{project.revision}"), project.url_for_path('/'))
+  return linkify(Rack::Utils.escape_html("#{project.name}-#{project.revision}"), url_for_path(project, '/'))
 end
 
 def bootstrap_flash
@@ -237,10 +98,10 @@ before { request.path_info.sub! %r{/$}, '' }
 
 # API: get comments for specified file
 get '/:user/:project/:revision/files/*/comments' do |user_name, proj_name, revision, path|
-  project = Project.create(user_name, proj_name, revision)
+  project = DB::Project.lookup(user_name, proj_name, revision)
   halt 404  if project == nil
 
-  blob = project.gitobj_for_path(path)
+  blob = GitObj.create(project, path)
   halt 404  if blob == nil
   halt 404  if blob.is_tree?
   
@@ -255,7 +116,7 @@ post '/:user/:project/:revision/files/*/comments/new' do |user_name, proj_name, 
   logged_in_user = DB::User.first(:name => session[:logged_in_user], :provider => DEFAULT_PROVIDER)
   halt 404 if logged_in_user == nil
 
-  project = Project.create(user_name, proj_name, revision)
+  project = DB::Project.lookup(user_name, proj_name, revision)
   halt 404  if project == nil
 
   params = JSON.parse(request.body.read)
@@ -277,7 +138,7 @@ delete '/:user/:project/:revision/files/*/comments/:line' do |user_name, proj_na
   logged_in_user = DB::User.first(:name => session[:logged_in_user], :provider => DEFAULT_PROVIDER)
   halt 404 if logged_in_user == nil
 
-  project = Project.create(user_name, proj_name, revision)
+  project = DB::Project.lookup(user_name, proj_name, revision)
   halt 404  if project == nil
 
   begin
@@ -294,7 +155,7 @@ end
 # view: root index
 get '/' do
   locals = { :title => "Projects - #{APPLICATION_NAME}",
-             :list => Project.list.collect do |e|
+             :list => DB::Project.list.collect do |e|
                { 'url'  => "/#{e.user.name}/#{e.name}/code/#{e.revision}/",
                  'name' => "#{e.user.name}/#{e.name}/#{e.revision}" }
              end,
@@ -375,7 +236,7 @@ end
 # view: repository index
 get '/:user' do |user_name|
   locals = { :title => "Repositories - #{APPLICATION_NAME}",
-             :list => Project.list_for_user(user_name).collect do |e|
+             :list => DB::Project.list_for_user(user_name).collect do |e|
                { 'url'  => "/#{e.user.name}/#{e.name}/code/#{e.revision}/",
                  'name' => "#{e.name}/#{e.revision}" }
              end,
@@ -387,7 +248,7 @@ end
 # view: revision index
 get '/:user/:project' do |user_name, proj_name|
   locals = { :title => "Revisions - #{APPLICATION_NAME}",
-             :list => Project.list_for_user_proj(user_name, proj_name).collect do |e|
+             :list => DB::Project.list_for_user_proj(user_name, proj_name).collect do |e|
                { 'url'  => "/#{e.user.name}/#{e.name}/code/#{e.revision}/",
                  'name' => "#{e.revision}" }
              end,
@@ -397,18 +258,18 @@ get '/:user/:project' do |user_name, proj_name|
 end
 
 def serve_gitobj(user_name, proj_name, revision, path)
-  project = Project.create(user_name, proj_name, revision)
+  project = DB::Project.lookup(user_name, proj_name, revision)
   halt 404, 'Project not found.'  if project == nil
   path = path.chomp('/')
 
-  gitobj = project.gitobj_for_path(path)
+  gitobj = GitObj.create(project, path)
   halt 404  if gitobj == nil
   if gitobj.is_tree?
     locals = { :title => "#{project.name}/#{path} - #{APPLICATION_NAME}",
                :project_link_html => make_project_link_html(project),
                :path_html => make_path_breadcrumb_html(project, path),
                :list => gitobj.list.collect do |e|
-                 { 'url'     => project.url_for_path(path + '/' + e.name),
+                 { 'url'     => url_for_path(project, path + '/' + e.name),
                    'name'    => e.name,
                    'is_tree' => e.is_tree }
                end,
@@ -448,7 +309,7 @@ get '/:user/:project/search' do |user_name, proj_name|
   query = request.params['query']
   halt 404 if revision == nil || path == nil || line == nil || query == nil
 
-  project = Project.create(user_name, proj_name, revision)
+  project = DB::Project.lookup(user_name, proj_name, revision)
   halt 404, 'Project not found.'  if project == nil
 
   path = path.chomp('/')
@@ -466,7 +327,7 @@ get '/:user/:project/search' do |user_name, proj_name|
     locals = { :title => "Search result for '#{query}' - #{APPLICATION_NAME}",
                :query => query,
                :list  => list.collect do |path, line|
-                 { 'url'     => project.url_for_path(path + '#L' + line),
+                 { 'url'     => url_for_path(project, path + '#L' + line),
                    'name'    => path + ':' + line }
                end,
                :logged_in_user => session[:logged_in_user]
