@@ -29,15 +29,20 @@ DEFAULT_PROVIDER = 'github'
 # APIs ----------
 
 # API: register repository
-get '/repos/:user/:project/:revision/new' do |user_name, proj_name, revision|
+get '/repos/:user/:project/:revision/new' do |user_name, proj_name, commit_id|
   user = DB::User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
   halt 404  if user == nil
-  project = user.projects.first(:name => proj_name, :revision => revision)
   now = Time.now
-  if project != nil
-    project.update(:modified_at => now)
+  project = user.projects.first(:name => proj_name)
+  if project == nil
+    project = user.projects.new(:name => proj_name, :modified_at => now)
+  end
+  # 結構面倒
+  revision = project.revisions.first(:commit_id => commit_id)
+  if revision != nil
+    revision.update(:modified_at => now)
   else
-    project = user.projects.create(:name => proj_name, :revision => revision, :modified_at => now)
+    revision = project.revisions.new(:commit_id => commit_id, :modified_at => now)
   end
   user.save
 

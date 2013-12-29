@@ -38,13 +38,23 @@ module DB
   class Project
     include DataMapper::Resource
 
-    property :id,       Serial
-    property :name,     String, :required => true
-    property :revision, String, :required => true
+    property :id,          Serial
+    property :name,        String, :required => true
+    property :modified_at, DateTime, :required => true
+
+    has n, :revisions
+    belongs_to :user
+  end
+
+  class Revision
+    include DataMapper::Resource
+
+    property :id,          Serial
+    property :commit_id,   String, :required => true
     property :modified_at, DateTime, :required => true
 
     has n, :files
-    belongs_to :user
+    belongs_to :project
   end
 
   class File
@@ -74,20 +84,6 @@ DataMapper.finalize
 
 module DB
   class Project
-    def self.lookup(user_name, proj_name, revision)
-      user = User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
-      if user
-        project = user.projects.first(:name => proj_name, :revision => revision)
-        return project
-      else
-        return nil
-      end
-    end
-
-    def self.list()
-      return self.all()
-    end
-
     def self.list_for_user(user_name)
       user = User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
       if user
@@ -96,14 +92,34 @@ module DB
         return []
       end
     end
+  end
+
+  class Revision
+    def self.lookup(user_name, proj_name, commit_id)
+      user = User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
+      if user
+        project = user.projects.first(:name => proj_name)
+        if project
+          revision = project.revisions.first(:commit_id => commit_id)
+          return revision
+        end
+      end
+      return nil
+    end
+
+    def self.list()
+      return self.all()
+    end
 
     def self.list_for_user_proj(user_name, proj_name)
       user = User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
       if user
-        return user.projects.all(:name => proj_name)
-      else
-        return []
+        project = user.projects.first(:name => proj_name)
+        if project
+          return project.revisions.all
+        end
       end
+      return []
     end
 
     def get_comments(path)
@@ -138,11 +154,11 @@ module DB
 end
 
 class GitObj
-  def self.create(project, path)
-    repo_path = "#{ENV['GITOLITE_HOME']}/repositories/#{project.user.name}/#{project.name}.git"
+  def self.create(revision, path)
+    repo_path = "#{ENV['GITOLITE_HOME']}/repositories/#{revision.project.user.name}/#{revision.project.name}.git"
     repo = Rugged::Repository.new(repo_path)
     begin
-      commit = repo.lookup(project.revision)
+      commit = repo.lookup(revision.commit_id)
       root = commit.tree
       if path != ''
         info = root.path(path)

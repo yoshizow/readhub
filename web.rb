@@ -40,15 +40,15 @@ REPOADMIN_SERVER_URL = 'http://localhost:4000'
 
 # helper routines ----------
 
-def url_for_path(project, path)
-  return "/#{project.user.name}/#{project.name}/code/#{project.revision}/#{path}".gsub(%r!//+!, '/')
+def url_for_path(revision, path)
+  return "/#{revision.project.user.name}/#{revision.project.name}/code/#{revision.commit_id}/#{path}".gsub(%r!//+!, '/')
 end
 
 def linkify(html, url)
   return '<a href="' + url + '">' + html + '</a>'
 end
 
-def make_path_breadcrumb_html(project, path)
+def make_path_breadcrumb_html(revision, path)
   def render_html(list)
     if list.empty?
       return ''
@@ -65,21 +65,21 @@ def make_path_breadcrumb_html(project, path)
     end
   end
 
-  def make_list(project, path)
+  def make_list(revision, path)
     path_components = path.split('/')
     #assert !path_components.include?('')
     list = path_components.each_with_index.collect do |name, idx|
              [name,
-              url_for_path(project, path_components[0..idx].join('/'))]
+              url_for_path(revision, path_components[0..idx].join('/'))]
            end
     return list
   end
 
-  return render_html(make_list(project, path))
+  return render_html(make_list(revision, path))
 end
 
-def make_project_link_html(project)
-  return linkify(Rack::Utils.escape_html("#{project.name}-#{project.revision}"), url_for_path(project, '/'))
+def make_project_link_html(revision)
+  return linkify(Rack::Utils.escape_html("#{revision.project.name}-#{revision.commit_id}"), url_for_path(revision, '/'))
 end
 
 def bootstrap_flash
@@ -97,34 +97,34 @@ end
 before { request.path_info.sub! %r{/$}, '' }
 
 # API: get comments for specified file
-get '/:user/:project/:revision/files/*/comments' do |user_name, proj_name, revision, path|
-  project = DB::Project.lookup(user_name, proj_name, revision)
-  halt 404  if project == nil
+get '/:user/:project/:revision/files/*/comments' do |user_name, proj_name, commit_id, path|
+  revision = DB::Revision.lookup(user_name, proj_name, commit_id)
+  halt 404  if revision == nil
 
-  blob = GitObj.create(project, path)
+  blob = GitObj.create(revision, path)
   halt 404  if blob == nil
   halt 404  if blob.is_tree?
   
-  comments = project.get_comments(path)
+  comments = revision.get_comments(path)
 
   json comments.map { |e| { :line => e.line, :text => e.text } }
 end
 
 # API: add new comment
-post '/:user/:project/:revision/files/*/comments/new' do |user_name, proj_name, revision, path|
+post '/:user/:project/:revision/files/*/comments/new' do |user_name, proj_name, commit_id, path|
   halt 404  if !session[:logged_in_user]
   logged_in_user = DB::User.first(:name => session[:logged_in_user], :provider => DEFAULT_PROVIDER)
   halt 404 if logged_in_user == nil
 
-  project = DB::Project.lookup(user_name, proj_name, revision)
-  halt 404  if project == nil
+  revision = DB::Revision.lookup(user_name, proj_name, commit_id)
+  halt 404  if revision == nil
 
   params = JSON.parse(request.body.read)
   line = params['line']
   text = params['text']
 
   begin
-    project.add_comment(logged_in_user, path, line, text)
+    revision.add_comment(logged_in_user, path, line, text)
   rescue ForbiddenError
     halt 403
   end
@@ -133,16 +133,16 @@ post '/:user/:project/:revision/files/*/comments/new' do |user_name, proj_name, 
 end
 
 # API: remove comment
-delete '/:user/:project/:revision/files/*/comments/:line' do |user_name, proj_name, revision, path, line|
+delete '/:user/:project/:revision/files/*/comments/:line' do |user_name, proj_name, commit_id, path, line|
   halt 404  if !session[:logged_in_user]
   logged_in_user = DB::User.first(:name => session[:logged_in_user], :provider => DEFAULT_PROVIDER)
   halt 404 if logged_in_user == nil
 
-  project = DB::Project.lookup(user_name, proj_name, revision)
+  revision = DB::Revision.lookup(user_name, proj_name, commit_id)
   halt 404  if project == nil
 
   begin
-    project.delete_comment(logged_in_user, path, line)
+    revision.delete_comment(logged_in_user, path, line)
   rescue ForbiddenError
     halt 403
   end
@@ -155,9 +155,9 @@ end
 # view: root index
 get '/' do
   locals = { :title => "Projects - #{APPLICATION_NAME}",
-             :list => DB::Project.list.collect do |e|
-               { 'url'  => "/#{e.user.name}/#{e.name}/code/#{e.revision}/",
-                 'name' => "#{e.user.name}/#{e.name}/#{e.revision}" }
+             :list => DB::Revision.list.collect do |e|
+               { 'url'  => "/#{e.project.user.name}/#{e.project.name}/code/#{e.commit_id}/",
+                 'name' => "#{e.project.user.name}/#{e.project.name}/#{e.commit_id}" }
              end,
              :logged_in_user => session[:logged_in_user]
            }
@@ -237,8 +237,8 @@ end
 get '/:user' do |user_name|
   locals = { :title => "Repositories - #{APPLICATION_NAME}",
              :list => DB::Project.list_for_user(user_name).collect do |e|
-               { 'url'  => "/#{e.user.name}/#{e.name}/code/#{e.revision}/",
-                 'name' => "#{e.name}/#{e.revision}" }
+               { 'url'  => "/#{e.user.name}/#{e.name}/",
+                 'name' => "#{e.name}" }
              end,
              :logged_in_user => session[:logged_in_user]
            }
@@ -248,28 +248,28 @@ end
 # view: revision index
 get '/:user/:project' do |user_name, proj_name|
   locals = { :title => "Revisions - #{APPLICATION_NAME}",
-             :list => DB::Project.list_for_user_proj(user_name, proj_name).collect do |e|
-               { 'url'  => "/#{e.user.name}/#{e.name}/code/#{e.revision}/",
-                 'name' => "#{e.revision}" }
+             :list => DB::Revision.list_for_user_proj(user_name, proj_name).collect do |e|
+               { 'url'  => "/#{e.project.user.name}/#{e.project.name}/code/#{e.commit_id}/",
+                 'name' => "#{e.commit_id}" }
              end,
              :logged_in_user => session[:logged_in_user]
            }
   liquid :revision_index, :locals => locals
 end
 
-def serve_gitobj(user_name, proj_name, revision, path)
-  project = DB::Project.lookup(user_name, proj_name, revision)
-  halt 404, 'Project not found.'  if project == nil
+def serve_gitobj(user_name, proj_name, commit_id, path)
+  revision = DB::Revision.lookup(user_name, proj_name, commit_id)
+  halt 404, 'Project not found.'  if revision == nil
   path = path.chomp('/')
 
-  gitobj = GitObj.create(project, path)
+  gitobj = GitObj.create(revision, path)
   halt 404  if gitobj == nil
   if gitobj.is_tree?
-    locals = { :title => "#{project.name}/#{path} - #{APPLICATION_NAME}",
-               :project_link_html => make_project_link_html(project),
-               :path_html => make_path_breadcrumb_html(project, path),
+    locals = { :title => "#{revision.project.name}/#{path} - #{APPLICATION_NAME}",
+               :project_link_html => make_project_link_html(revision),
+               :path_html => make_path_breadcrumb_html(revision, path),
                :list => gitobj.list.collect do |e|
-                 { 'url'     => url_for_path(project, path + '/' + e.name),
+                 { 'url'     => url_for_path(revision, path + '/' + e.name),
                    'name'    => e.name,
                    'is_tree' => e.is_tree }
                end,
@@ -277,12 +277,12 @@ def serve_gitobj(user_name, proj_name, revision, path)
              }
     liquid :tree, :locals => locals
   else
-    locals = { :title => "#{project.name}/#{path} - #{APPLICATION_NAME}",
-               :project_link_html => make_project_link_html(project),
-               :path_html => make_path_breadcrumb_html(project, path),
+    locals = { :title => "#{revision.project.name}/#{path} - #{APPLICATION_NAME}",
+               :project_link_html => make_project_link_html(revision),
+               :path_html => make_path_breadcrumb_html(revision, path),
                :user_name => user_name,
-               :proj_name => project.name,
-               :revision => project.revision,
+               :proj_name => revision.project.name,
+               :revision => revision.commit_id,
                :data => Rack::Utils.escape_html(gitobj.data),
                :path => path,
                :readonly => session[:logged_in_user] ? "false" : "true",
@@ -293,41 +293,41 @@ def serve_gitobj(user_name, proj_name, revision, path)
 end
 
 # view: tree or blob
-get '/:user/:project/code/:revision' do |user_name, proj_name, revision|
-  serve_gitobj(user_name, proj_name, revision, '/')
+get '/:user/:project/code/:revision' do |user_name, proj_name, commit_id|
+  serve_gitobj(user_name, proj_name, commit_id, '/')
 end
 
 # view: tree or blob
-get '/:user/:project/code/:revision/*' do |user_name, proj_name, revision, path|
-  serve_gitobj(user_name, proj_name, revision, path)
+get '/:user/:project/code/:revision/*' do |user_name, proj_name, commit_id, path|
+  serve_gitobj(user_name, proj_name, commit_id, path)
 end
 
 get '/:user/:project/search' do |user_name, proj_name|
-  revision = request.params['revision']
+  commit_id = request.params['revision']
   path = request.params['path']
   line = request.params['line']
   query = request.params['query']
-  halt 404 if revision == nil || path == nil || line == nil || query == nil
+  halt 404 if commit_id == nil || path == nil || line == nil || query == nil
 
-  project = DB::Project.lookup(user_name, proj_name, revision)
-  halt 404, 'Project not found.'  if project == nil
+  revision = DB::Revision.lookup(user_name, proj_name, commit_id)
+  halt 404, 'Project not found.'  if revision == nil
 
   path = path.chomp('/')
 
   # TODO: prevent injection
-  logger.info("executing: cd #{ENV['READHUB_HOME']}/indices/#{user_name}/#{project.name}/#{revision}/src; global --from-here #{line}:#{path} --result=ctags #{query}")
-  list = IO.popen("cd #{ENV['READHUB_HOME']}/indices/#{user_name}/#{project.name}/#{revision}/src; global --from-here #{line}:#{path} --result=ctags #{query}", 'r') do |io|
+  logger.info("executing: cd #{ENV['READHUB_HOME']}/indices/#{revision.project.user.name}/#{revision.project.name}/#{revision.commit_id}/src; global --from-here #{line}:#{path} --result=ctags #{query}")
+  list = IO.popen("cd #{ENV['READHUB_HOME']}/indices/#{revision.project.user.name}/#{revision.project.name}/#{revision.commit_id}/src; global --from-here #{line}:#{path} --result=ctags #{query}", 'r') do |io|
     io.readlines.map { |line| line.chomp.split("\t")[1..2] }
   end
   if list.length == 1
     path, line = list[0]
-    redirect to("/#{user_name}/#{project.name}/code/#{revision}/#{path}#L#{line}")
+    redirect to("/#{revision.project.user.name}/#{revision.project.name}/code/#{revision.commit_id}/#{path}#L#{line}")
 
   else
     locals = { :title => "Search result for '#{query}' - #{APPLICATION_NAME}",
                :query => query,
                :list  => list.collect do |path, line|
-                 { 'url'     => url_for_path(project, path + '#L' + line),
+                 { 'url'     => url_for_path(revision, path + '#L' + line),
                    'name'    => path + ':' + line }
                end,
                :logged_in_user => session[:logged_in_user]
