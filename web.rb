@@ -98,7 +98,7 @@ before { request.path_info.sub! %r{/$}, '' }
 
 # API: get comments for specified file
 get '/:user/:project/:revision/files/*/comments' do |user_name, proj_name, commit_id, path|
-  revision = DB::Revision.lookup(user_name, proj_name, commit_id)
+  revision = Model::Revision.lookup(user_name, proj_name, commit_id)
   halt 404  if revision == nil
 
   blob = GitObj.create(revision, path)
@@ -113,10 +113,10 @@ end
 # API: add new comment
 post '/:user/:project/:revision/files/*/comments/new' do |user_name, proj_name, commit_id, path|
   halt 404  if !session[:logged_in_user]
-  logged_in_user = DB::User.first(:name => session[:logged_in_user], :provider => DEFAULT_PROVIDER)
+  logged_in_user = Model::User.first(:name => session[:logged_in_user], :provider => DEFAULT_PROVIDER)
   halt 404 if logged_in_user == nil
 
-  revision = DB::Revision.lookup(user_name, proj_name, commit_id)
+  revision = Model::Revision.lookup(user_name, proj_name, commit_id)
   halt 404  if revision == nil
 
   params = JSON.parse(request.body.read)
@@ -135,10 +135,10 @@ end
 # API: remove comment
 delete '/:user/:project/:revision/files/*/comments/:line' do |user_name, proj_name, commit_id, path, line|
   halt 404  if !session[:logged_in_user]
-  logged_in_user = DB::User.first(:name => session[:logged_in_user], :provider => DEFAULT_PROVIDER)
+  logged_in_user = Model::User.first(:name => session[:logged_in_user], :provider => DEFAULT_PROVIDER)
   halt 404 if logged_in_user == nil
 
-  revision = DB::Revision.lookup(user_name, proj_name, commit_id)
+  revision = Model::Revision.lookup(user_name, proj_name, commit_id)
   halt 404  if project == nil
 
   begin
@@ -155,7 +155,7 @@ end
 # view: root index
 get '/' do
   locals = { :title => "Projects - #{APPLICATION_NAME}",
-             :list => DB::Revision.list.collect do |e|
+             :list => Model::Revision.list.collect do |e|
                { 'url'  => "/#{e.project.user.name}/#{e.project.name}/code/#{e.commit_id}/",
                  'name' => "#{e.project.user.name}/#{e.project.name}/#{e.commit_id}" }
              end,
@@ -172,7 +172,7 @@ post '/session' do
   username = request.params['username']
   halt 404 if !username || username.empty?
   session[:logged_in_user] = username
-  db_user = DB::User.first_or_create(:name => username, :provider => DEFAULT_PROVIDER)
+  db_user = Model::User.first_or_create(:name => username, :provider => DEFAULT_PROVIDER)
   db_user.save!
   puts "Logged in as #{username}"
   redirect to('/')
@@ -186,7 +186,7 @@ end
 
 get '/settings/ssh' do
   halt 404  if !session[:logged_in_user]
-  db_user = DB::User.first(:name => session[:logged_in_user], :provider => DEFAULT_PROVIDER)
+  db_user = Model::User.first(:name => session[:logged_in_user], :provider => DEFAULT_PROVIDER)
   halt 404 if db_user == nil
 
   db_public_key = db_user.public_keys.first
@@ -208,7 +208,7 @@ post '/account/public_keys' do
   key = request.params['key']
   halt 404 if !key
   halt 404  if !session[:logged_in_user]
-  db_user = DB::User.first(:name => session[:logged_in_user], :provider => DEFAULT_PROVIDER)
+  db_user = Model::User.first(:name => session[:logged_in_user], :provider => DEFAULT_PROVIDER)
   halt 404 if db_user == nil
   
   key = key.strip
@@ -236,7 +236,7 @@ end
 # view: repository index
 get '/:user' do |user_name|
   locals = { :title => "Repositories - #{APPLICATION_NAME}",
-             :list => DB::Project.list_for_user(user_name).collect do |e|
+             :list => Model::Project.list_for_user(user_name).collect do |e|
                { 'url'  => "/#{e.user.name}/#{e.name}/",
                  'name' => "#{e.name}" }
              end,
@@ -248,7 +248,7 @@ end
 # view: revision index
 get '/:user/:project' do |user_name, proj_name|
   locals = { :title => "Revisions - #{APPLICATION_NAME}",
-             :list => DB::Revision.list_for_user_proj(user_name, proj_name).collect do |e|
+             :list => Model::Revision.list_for_user_proj(user_name, proj_name).collect do |e|
                { 'url'  => "/#{e.project.user.name}/#{e.project.name}/code/#{e.commit_id}/",
                  'name' => "#{e.commit_id}" }
              end,
@@ -258,7 +258,7 @@ get '/:user/:project' do |user_name, proj_name|
 end
 
 def serve_gitobj(user_name, proj_name, commit_id, path)
-  revision = DB::Revision.lookup(user_name, proj_name, commit_id)
+  revision = Model::Revision.lookup(user_name, proj_name, commit_id)
   halt 404, 'Project not found.'  if revision == nil
   path = path.chomp('/')
 
@@ -309,7 +309,7 @@ get '/:user/:project/search' do |user_name, proj_name|
   query = request.params['query']
   halt 404 if commit_id == nil || path == nil || line == nil || query == nil
 
-  revision = DB::Revision.lookup(user_name, proj_name, commit_id)
+  revision = Model::Revision.lookup(user_name, proj_name, commit_id)
   halt 404, 'Project not found.'  if revision == nil
 
   path = path.chomp('/')

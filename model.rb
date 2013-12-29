@@ -12,7 +12,7 @@ DataMapper::Logger.new($stdout, :debug)
 DataMapper.setup(:default, ENV['DATABASE_URL'])
 DataMapper::Model.raise_on_save_failure = true
 
-module DB
+module Model
   class User
     include DataMapper::Resource
 
@@ -82,7 +82,7 @@ end
 
 DataMapper.finalize
 
-module DB
+module Model
   class Project
     def self.list_for_user(user_name)
       user = User.first(:name => user_name, :provider => DEFAULT_PROVIDER)

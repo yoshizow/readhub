@@ -30,7 +30,7 @@ DEFAULT_PROVIDER = 'github'
 
 # API: register repository
 get '/repos/:user/:project/:revision/new' do |user_name, proj_name, commit_id|
-  user = DB::User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
+  user = Model::User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
   halt 404  if user == nil
   now = Time.now
   project = user.projects.first(:name => proj_name)
@@ -51,7 +51,7 @@ end
 
 # API: register public key
 post '/certs/:user/new' do |user_name|
-  user = DB::User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
+  user = Model::User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
   halt 404  if user == nil
 
   ga_repo = Gitolite::GitoliteAdmin.new("#{ENV['READHUB_HOME']}/gitolite-admin")
@@ -66,7 +66,7 @@ end
 # API: unregister public key
 # note: this is post method as it requires key content
 post '/certs/:user/delete' do |user_name|
-  user = DB::User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
+  user = Model::User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
   halt 404  if user == nil
   
   ga_repo = Gitolite::GitoliteAdmin.new("#{ENV['READHUB_HOME']}/gitolite-admin")
