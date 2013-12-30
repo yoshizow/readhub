@@ -113,7 +113,7 @@ end
 # API: add new comment
 post '/:user/:project/:revision/files/*/comments/new' do |user_name, proj_name, commit_id, path|
   halt 404  if !session[:logged_in_user]
-  logged_in_user = Model::User.first(:name => session[:logged_in_user], :provider => DEFAULT_PROVIDER)
+  logged_in_user = Model::User.where(name: session[:logged_in_user], provider: DEFAULT_PROVIDER).first
   halt 404 if logged_in_user == nil
 
   revision = Model::Revision.lookup(user_name, proj_name, commit_id)
@@ -123,11 +123,7 @@ post '/:user/:project/:revision/files/*/comments/new' do |user_name, proj_name, 
   line = params['line']
   text = params['text']
 
-  begin
-    revision.add_comment(logged_in_user, path, line, text)
-  rescue ForbiddenError
-    halt 403
-  end
+  revision.add_comment(logged_in_user, path, line, text)
 
   json 'status' => 'OK'
 end
@@ -135,17 +131,13 @@ end
 # API: remove comment
 delete '/:user/:project/:revision/files/*/comments/:line' do |user_name, proj_name, commit_id, path, line|
   halt 404  if !session[:logged_in_user]
-  logged_in_user = Model::User.first(:name => session[:logged_in_user], :provider => DEFAULT_PROVIDER)
+  logged_in_user = Model::User.where(name: session[:logged_in_user], provider: DEFAULT_PROVIDER).first
   halt 404 if logged_in_user == nil
 
   revision = Model::Revision.lookup(user_name, proj_name, commit_id)
-  halt 404  if project == nil
+  halt 404  if revision == nil
 
-  begin
-    revision.delete_comment(logged_in_user, path, line)
-  rescue ForbiddenError
-    halt 403
-  end
+  revision.delete_comment(logged_in_user, path, line)
 
   json 'status' => 'OK'
 end
@@ -155,9 +147,9 @@ end
 # view: root index
 get '/' do
   locals = { :title => "Projects - #{APPLICATION_NAME}",
-             :list => Model::Revision.list.collect do |e|
-               { 'url'  => "/#{e.project.user.name}/#{e.project.name}/code/#{e.commit_id}/",
-                 'name' => "#{e.project.user.name}/#{e.project.name}/#{e.commit_id}" }
+             :list => Model::User.all.collect do |e|
+               { 'url'  => "/#{e.name}",
+                 'name' => "#{e.name}" }
              end,
              :logged_in_user => session[:logged_in_user]
            }
@@ -172,7 +164,7 @@ post '/session' do
   username = request.params['username']
   halt 404 if !username || username.empty?
   session[:logged_in_user] = username
-  db_user = Model::User.first_or_create(:name => username, :provider => DEFAULT_PROVIDER)
+  db_user = Model::User.where(name: username, provider: DEFAULT_PROVIDER).first_or_create
   db_user.save!
   puts "Logged in as #{username}"
   redirect to('/')
@@ -186,7 +178,7 @@ end
 
 get '/settings/ssh' do
   halt 404  if !session[:logged_in_user]
-  db_user = Model::User.first(:name => session[:logged_in_user], :provider => DEFAULT_PROVIDER)
+  db_user = Model::User.where(name: session[:logged_in_user], provider: DEFAULT_PROVIDER).first
   halt 404 if db_user == nil
 
   db_public_key = db_user.public_keys.first
@@ -208,7 +200,7 @@ post '/account/public_keys' do
   key = request.params['key']
   halt 404 if !key
   halt 404  if !session[:logged_in_user]
-  db_user = Model::User.first(:name => session[:logged_in_user], :provider => DEFAULT_PROVIDER)
+  db_user = Model::User.where(name: session[:logged_in_user], provider: DEFAULT_PROVIDER).first
   halt 404 if db_user == nil
   
   key = key.strip
@@ -220,11 +212,10 @@ post '/account/public_keys' do
     end
   else
     db_public_key = db_user.public_keys.first
-    now = Time.now
     if db_public_key != nil
-      db_public_key.update(:public_key => key, :modified_at => now)
+      db_public_key.update(public_key: key)
     else
-      db_user.public_keys.create(:public_key => key, :modified_at => now)
+      db_user.public_keys.create(public_key: key)
     end
     RestClient.post "#{REPOADMIN_SERVER_URL}/certs/#{db_user.name}/new", key, :content_type => "application/octet-stream"
   end

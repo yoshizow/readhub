@@ -14,6 +14,17 @@ template '/etc/readhub.env' do
             :gitolite_home => node['readhub']['gitolite_home'])
 end
 
+# Allow 'www-data' user write /vagrant/db/schema.rb
+# TODO: do this only in development mode
+# --------------------------------------
+directory "#{node['readhub']['readhub_src']}/db" do
+  # Make db folder World-writable.
+  # Adding 'www-data' user to 'vagrant' group and chmod 0775 db does not
+  # work. Chef's setgid function seems ignore secondary groups.
+  mode 0777
+end
+# --------------------------------------
+
 include_recipe 'readhub::gitolite'
 include_recipe 'readhub::web'
 include_recipe 'readhub::repoadmin'

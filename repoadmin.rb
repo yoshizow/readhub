@@ -22,36 +22,21 @@ configure :development do
   use Rack::CommonLogger
 end
 
-# models ----------
-
-DEFAULT_PROVIDER = 'github'
-
 # APIs ----------
 
 # API: register repository
 get '/repos/:user/:project/:revision/new' do |user_name, proj_name, commit_id|
-  user = Model::User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
+  user = Model::User.where(name: user_name, provider: DEFAULT_PROVIDER).first
   halt 404  if user == nil
-  now = Time.now
-  project = user.projects.first(:name => proj_name)
-  if project == nil
-    project = user.projects.new(:name => proj_name, :modified_at => now)
-  end
-  # 結構面倒
-  revision = project.revisions.first(:commit_id => commit_id)
-  if revision != nil
-    revision.update(:modified_at => now)
-  else
-    revision = project.revisions.new(:commit_id => commit_id, :modified_at => now)
-  end
-  user.save
+  project = user.projects.where(name: proj_name).first_or_create
+  revision = project.revisions.first_or_create(commit_id: commit_id)
 
   json 'status' => 'OK'
 end
 
 # API: register public key
 post '/certs/:user/new' do |user_name|
-  user = Model::User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
+  user = Model::User.where(name: user_name, provider: DEFAULT_PROVIDER).first
   halt 404  if user == nil
 
   ga_repo = Gitolite::GitoliteAdmin.new("#{ENV['READHUB_HOME']}/gitolite-admin")
@@ -66,7 +51,7 @@ end
 # API: unregister public key
 # note: this is post method as it requires key content
 post '/certs/:user/delete' do |user_name|
-  user = Model::User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
+  user = Model::User.where(name: user_name, provider: DEFAULT_PROVIDER).first
   halt 404  if user == nil
   
   ga_repo = Gitolite::GitoliteAdmin.new("#{ENV['READHUB_HOME']}/gitolite-admin")

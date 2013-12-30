@@ -1,93 +1,55 @@
 # -*- coding: utf-8 -*-
 
-require 'data_mapper'
+require 'sinatra'
+require 'sinatra/activerecord'
 require 'dotenv'
 
 DEFAULT_PROVIDER = 'github'
 
 Dotenv.load('/etc/readhub.env')
 
-DataMapper::Logger.new($stdout, :debug)
-
-DataMapper.setup(:default, ENV['DATABASE_URL'])
-DataMapper::Model.raise_on_save_failure = true
+set :database, ENV['DATABASE_URL']
 
 module Model
-  class User
-    include DataMapper::Resource
 
-    property :id,       Serial
-    property :provider, String, :required => true
-    property :name,     String, :required => true
-
-    has n, :public_keys
-    has n, :projects
-    has n, :comments
+  class User < ActiveRecord::Base
+    has_many :public_keys, dependent: :destroy
+    has_many :projects, dependent: :destroy
+    has_many :comments, dependent: :destroy
   end
 
-  class PublicKey
-    include DataMapper::Resource
-
-    property :id,          Serial
-    property :public_key,  Text,     :required => true
-    property :modified_at, DateTime, :required => true
-
+  class PublicKey < ActiveRecord::Base
     belongs_to :user
   end
 
-  class Project
-    include DataMapper::Resource
-
-    property :id,          Serial
-    property :name,        String, :required => true
-    property :modified_at, DateTime, :required => true
-
-    has n, :revisions
+  class Project < ActiveRecord::Base
+    has_many :revisions, dependent: :destroy
     belongs_to :user
   end
 
-  class Revision
-    include DataMapper::Resource
-
-    property :id,          Serial
-    property :commit_id,   String, :required => true
-    property :modified_at, DateTime, :required => true
-
-    has n, :files
+  class Revision < ActiveRecord::Base
+    has_many :files, dependent: :destroy
     belongs_to :project
   end
 
-  class File
-    include DataMapper::Resource
-    
-    property :id,   Serial
-    property :path, String, :length => 1024, :required => true
-
-    has n, :comments
-    belongs_to :project
+  class File < ActiveRecord::Base
+    has_many :comments, dependent: :destroy
+    belongs_to :revision
   end
 
-  class Comment
-    include DataMapper::Resource
-
-    property :id,          Serial
-    property :line,        Integer,  :required => true
-    property :text,        Text,     :required => true
-    property :modified_at, DateTime, :required => true
-
+  class Comment < ActiveRecord::Base
     belongs_to :file
     belongs_to :user
   end
-end
 
-DataMapper.finalize
+end
 
 module Model
   class Project
     def self.list_for_user(user_name)
-      user = User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
+      user = User.where(name: user_name, provider: DEFAULT_PROVIDER).first
       if user
-        return user.projects.all
+        return user.projects.to_a
       else
         return []
       end
@@ -96,36 +58,32 @@ module Model
 
   class Revision
     def self.lookup(user_name, proj_name, commit_id)
-      user = User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
+      user = User.where(name: user_name, provider: DEFAULT_PROVIDER).first
       if user
-        project = user.projects.first(:name => proj_name)
+        project = user.projects.where(name: proj_name).first
         if project
-          revision = project.revisions.first(:commit_id => commit_id)
+          revision = project.revisions.where(commit_id: commit_id).first
           return revision
         end
       end
       return nil
     end
 
-    def self.list()
-      return self.all()
-    end
-
     def self.list_for_user_proj(user_name, proj_name)
-      user = User.first(:name => user_name, :provider => DEFAULT_PROVIDER)
+      user = User.where(name: user_name, provider: DEFAULT_PROVIDER).first
       if user
-        project = user.projects.first(:name => proj_name)
+        project = user.projects.where(name: proj_name).first
         if project
-          return project.revisions.all
+          return project.revisions.to_a
         end
       end
       return []
     end
 
     def get_comments(path)
-      file = self.files.first(:path => path)
+      file = self.files.where(path: path).first
       if file
-        comments = file.comments.all
+        comments = file.comments.to_a
         return comments
       else
         return []
@@ -133,21 +91,16 @@ module Model
     end
 
     def add_comment(logged_in_user, path, line, text)
-      file = self.files.first_or_create(:path => path)
-      comment = file.comments.first(:user => logged_in_user, :line => line)
-      now = Time.now
-      if comment
-        comment.update(:text => text, :modified_at => now)
-      else
-        file.comments.create(:user => logged_in_user, :line => line, :text => text, :modified_at => now)
-      end
+      file = self.files.where(path: path).first_or_create
+      comment = file.comments.where(user: logged_in_user, line: line).first_or_initialize
+      comment.update(text: text)
     end
 
     def delete_comment(logged_in_user, path, line)
-      file = self.files.first_or_create(:path => path)
-      comments = file.comments.all(:user => logged_in_user, :line => line)
+      file = self.files.where(path: path).first_or_create
+      comments = file.comments.where(user: logged_in_user, line: line)
       if comments
-        comments.destroy
+        comments.destroy_all
       end
     end
   end

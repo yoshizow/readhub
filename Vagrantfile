@@ -12,6 +12,10 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     vm.customize ["modifyvm", :id, "--memory", "1024"]
   end
 
+  # Change owner of synched folder to allow web process write files
+  # under that folder.
+  config.vm.synced_folder ".", "/vagrant", owner: "www-data", group: "www-data"
+
   # vagrant-omnibus plugin
   config.omnibus.chef_version = :latest
 
