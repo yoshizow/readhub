@@ -19,6 +19,7 @@ end
 
 configure :development do
   require 'sinatra/reloader'
+  also_reload './model.rb'
   use Rack::CommonLogger
 end
 
