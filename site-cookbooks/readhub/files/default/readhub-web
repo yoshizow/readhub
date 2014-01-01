@@ -13,7 +13,7 @@
  
 # Do NOT "set -e"
  
-DAEMON='bundle exec /usr/local/rbenv/shims/thin'
+DAEMON='/usr/local/rbenv/shims/bundle exec /usr/local/rbenv/shims/thin'
 SCRIPT_NAME=/etc/init.d/readhub-web
 CONFIG_FILE=/etc/thin/readhub-web.yml
 APP_PATH=/vagrant
