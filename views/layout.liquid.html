@@ -35,7 +35,7 @@ $(document).ready(function() {
 -->
         <ul class="nav navbar-nav navbar-right">
 {% if logged_in_user != nil %}
-          <li><a href="/settings/ssh">User: {{ logged_in_user | escape }}</a>
+          <li><a href="/settings">User: {{ logged_in_user | escape }}</a>
           <li><a href="/logout">Logout</a>
 {% else %}
           <li><a href="/login">Login</a>

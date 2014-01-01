@@ -1,0 +1,37 @@
+<!-- head -->
+<script type="text/javascript">
+var confirmAndDeleteRepo = function(e) {
+    var repoName = $(e).data('repo');
+    if (window.prompt("Really delete repository '" + repoName + "'?\nThis operation cannot be undone!\nIf you want to delete the repository, enter 'yes':") == 'yes') {
+        deleteRepo(repoName);
+    }
+};
+
+var deleteRepo = function(name) {
+    window.location = '/settings/repositories/' + encodeURIComponent(name) + '/delete';
+}
+
+$(document).ready(function() {
+    $('button[name="delete"]').on('click', function(ev) {
+        confirmAndDeleteRepo(this);
+    });
+});
+</script>
+
+<!-- body -->
+{{ flash_messages }}
+
+<h3>Repositories</h3>
+
+<table class="table">
+{% for e in list %}
+ <tr>
+  <td><a href="{{ e.url }}">{{ e.name | escape }}</a></td>
+  <td>
+   <span class="btn-group btn-group-sm">
+    <button type="button" class="btn btn-danger" name="delete" data-repo="{{ e.name | escape }}"><span class="glyphicon glyphicon-remove"></span>&nbsp;Delete</button>
+   </span>
+  </td>
+ </tr> 
+{% endfor %}
+</table>

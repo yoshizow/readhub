@@ -4,6 +4,7 @@ require 'sinatra'
 require 'sinatra/json'
 require 'gitolite'
 require 'dotenv'
+require 'fileutils'
 
 require_relative './model.rb'
 
@@ -60,6 +61,24 @@ post '/certs/:user/delete' do |user_name|
   key = Gitolite::SSHKey.from_string(key_content, user_name)
   ga_repo.rm_key(key)
   ga_repo.save_and_apply
+
+  json 'status' => 'OK'
+end
+
+# API: delete repository
+get '/repositories/:user/:project/delete' do |user_name, proj_name|
+  user = Model::User.where(name: user_name, provider: DEFAULT_PROVIDER).first
+  halt 404  if user == nil
+  project = user.projects.where(name: proj_name).first
+  halt 404 if project == nil
+
+  # remove index
+  FileUtils.rm_rf("#{ENV['READHUB_HOME']}/indices/#{user.name}/#{project.name}")
+  # remove repo
+  system("HOME=#{ENV['GITOLITE_HOME']} GL_USER=#{user.name} /var/git/bin/gitolite D unlock #{user.name}/#{project.name}")
+  system("HOME=#{ENV['GITOLITE_HOME']} GL_USER=#{user.name} /var/git/bin/gitolite D rm #{user.name}/#{project.name}")
+  # remove from DB
+  project.destroy
 
   json 'status' => 'OK'
 end

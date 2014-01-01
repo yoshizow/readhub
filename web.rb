@@ -177,6 +177,15 @@ get '/logout' do
   redirect to('/')
 end
 
+get '/settings' do
+  halt 404  if !session[:logged_in_user]
+
+  locals = { :title => "Settings - #{APPLICATION_NAME}",
+             :logged_in_user => session[:logged_in_user],
+           }
+  liquid :settings, :locals => locals
+end
+
 get '/settings/ssh' do
   halt 404  if !session[:logged_in_user]
   db_user = Model::User.where(name: session[:logged_in_user], provider: DEFAULT_PROVIDER).first
@@ -195,6 +204,32 @@ get '/settings/ssh' do
              :key => key
            }
   liquid :settings_ssh, :locals => locals
+end
+
+get '/settings/repositories' do
+  halt 404  if !session[:logged_in_user]
+  locals = { :title => "Repositories - #{APPLICATION_NAME}",
+             :list => Model::Project.list_for_user(session[:logged_in_user]).collect do |e|
+               { 'url'  => "/#{e.user.name}/#{e.name}/",
+                 'name' => "#{e.name}" }
+             end,
+             :flash_messages => bootstrap_flash,
+             :logged_in_user => session[:logged_in_user]
+           }
+  liquid :settings_repo, :locals => locals
+end
+
+get '/settings/repositories/:project/delete' do |proj_name|
+  halt 404  if !session[:logged_in_user]
+  user = Model::User.where(name: session[:logged_in_user], provider: DEFAULT_PROVIDER).first
+  halt 404 if user == nil
+  project = user.projects.where(name: proj_name).first
+  halt 404 if project == nil
+
+  RestClient.get "#{REPOADMIN_SERVER_URL}/repositories/#{user.name}/#{project.name}/delete"
+
+  flash[:notice] = "Deleted repository."
+  redirect to('/settings/repositories')
 end
 
 post '/account/public_keys' do
